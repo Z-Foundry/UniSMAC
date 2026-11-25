@@ -19,8 +19,9 @@ import numpy as np
 import pytest
 
 from tests._support.simd import run_without_avx512
+from unismac.adapters.pymarl import make_pymarl_env
 from unismac.contract import Command
-from unismac.env import VecEnv, accel, build_config, make_env, make_vec_env
+from unismac.env import VecEnv, accel, build_config, make_vec_env
 from unismac.env.accel import classic as classic_mod
 from unismac.env.accel import manifest as manifest_mod
 from unismac.env.config import (
@@ -229,7 +230,7 @@ class Checking:
             _same_outcome(r, _run(rust.fill_max_rewards, out, *args), 'fill_max_rewards')
             _same(out_ref, out, 'max_rewards')
 
-        stats = ('battles_game', 'battles_won', 'timeouts', 'episode_count', 'done')
+        stats = ('_battles_game', '_battles_won', '_timeouts', '_episode_count', '_done')
 
         def settle(env, active, end, cur, reward):
             self.calls['settle'] += 1
@@ -353,12 +354,12 @@ class Checking:
 def _install(env: VecEnv, k: accel.Kernels) -> None:
     """Swap env kernels and update services held by semantic components."""
     env._k = k
-    env.actions.ops = k.services
-    env.rewarder.ops = k.services
+    env._actions.ops = k.services
+    env._rewarder.ops = k.services
     if env._p2 is not None:
         env._p2.actions.ops = k.services
         env._p2.rewarder.ops = k.services
-    object.__setattr__(env.terrain, 'ops', k.services)
+    object.__setattr__(env._terrain, 'ops', k.services)
 
 
 # ---------------------------------------------------------------- Parallel tier runs
@@ -395,49 +396,49 @@ def _pair(preset: str, scenario: str, over: Any, backend: Any, batch: int, **kw:
 
 
 _COUNTERS = (
-    'max_rewards',
-    'reset_count',
-    'episode_steps',
-    'episode_count',
-    'done',
-    'battles_won',
-    'battles_game',
-    'timeouts',
+    '_max_rewards',
+    '_reset_count',
+    '_episode_steps',
+    '_episode_count',
+    '_done',
+    '_battles_won',
+    '_battles_game',
+    '_timeouts',
 )
 
 
 def _compare(py: VecEnv, sv: VecEnv, where: str) -> None:
     """Compare obs, state, avail, and all system/semantic state: WorldState, views, tables,
     per-env counters, generator draws, spotter, and opponent state."""
-    _same(py.get_obs(), sv.get_obs(), f'{where} obs')
-    _same(py.get_state(), sv.get_state(), f'{where} state')
-    _same(py.get_avail_actions(), sv.get_avail_actions(), f'{where} avail')
+    _same(py.obs(), sv.obs(), f'{where} obs')
+    _same(py.state(), sv.state(), f'{where} state')
+    _same(py.avail_actions(), sv.avail_actions(), f'{where} avail')
     _same(py._require(), sv._require(), f'{where} WorldState, frame, tables')
-    _same(py.view.ally_slots, sv.view.ally_slots, f'{where} ally_slots')
-    _same(py.view.enemy_slots, sv.view.enemy_slots, f'{where} enemy_slots')
+    _same(py._view.ally_slots, sv._view.ally_slots, f'{where} ally_slots')
+    _same(py._view.enemy_slots, sv._view.enemy_slots, f'{where} enemy_slots')
     for name in _COUNTERS:
         _same(getattr(py, name), getattr(sv, name), f'{where} {name}')
     _same(py.attack_prob, sv.attack_prob, f'{where} attack_prob')
-    _same(py.enemy_mask, sv.enemy_mask, f'{where} enemy_mask')
-    _same(py.rewarder.dead_ally, sv.rewarder.dead_ally, f'{where} dead_ally')
-    _same(py.rewarder.dead_enemy, sv.rewarder.dead_enemy, f'{where} dead_enemy')
-    if py.spotter is not None and sv.spotter is not None:
+    _same(py._enemy_mask, sv._enemy_mask, f'{where} enemy_mask')
+    _same(py._rewarder.dead_ally, sv._rewarder.dead_ally, f'{where} dead_ally')
+    _same(py._rewarder.dead_enemy, sv._rewarder.dead_enemy, f'{where} dead_enemy')
+    if py._spotter is not None and sv._spotter is not None:
         for a in ('seen', 'tag', 'gate'):
-            _same(getattr(py.spotter, a), getattr(sv.spotter, a), f'{where} spotter.{a}')
-    if type(py.opponent) is OpeningOrders and type(sv.opponent) is OpeningOrders:
-        _same(py.opponent.target, sv.opponent.target, f'{where} opponent.target')
-        _same(py.opponent.pending, sv.opponent.pending, f'{where} opponent.pending')
-    assert py.opponent_names() == sv.opponent_names(), f'{where} opponent_names'
-    _same(py.opponent_errors(), sv.opponent_errors(), f'{where} opponent_errors')
-    warned = [getattr(e.opponent, '_warned', None) for e in (py, sv)]
+            _same(getattr(py._spotter, a), getattr(sv._spotter, a), f'{where} spotter.{a}')
+    if type(py._opponent) is OpeningOrders and type(sv._opponent) is OpeningOrders:
+        _same(py._opponent.target, sv._opponent.target, f'{where} opponent.target')
+        _same(py._opponent.pending, sv._opponent.pending, f'{where} opponent.pending')
+    assert py.runtime.opponent_names() == sv.runtime.opponent_names(), f'{where} opponent_names'
+    _same(py.runtime.opponent_errors(), sv.runtime.opponent_errors(), f'{where} opponent_errors')
+    warned = [getattr(e._opponent, '_warned', None) for e in (py, sv)]
     assert warned[0] == warned[1], f'{where} script warning state'
     p2, s2 = py._p2, sv._p2
     assert (p2 is None) == (s2 is None), where
     if p2 is not None and s2 is not None:  # two-sided mode: same checks for Player 2
-        _same(py.get_obs(2), sv.get_obs(2), f'{where} p2 obs')
-        _same(py.get_state(2), sv.get_state(2), f'{where} p2 state')
-        _same(py.get_avail_actions(2), sv.get_avail_actions(2), f'{where} p2 avail')
-        _same(p2.require(), s2.require(), f'{where} p2 frame and tables')
+        _same(py.obs(2), sv.obs(2), f'{where} p2 obs')
+        _same(py.state(2), sv.state(2), f'{where} p2 state')
+        _same(py.avail_actions(2), sv.avail_actions(2), f'{where} p2 avail')
+        _same(p2._require(), s2._require(), f'{where} p2 frame and tables')
         for name in ('ally_slots', 'enemy_slots'):
             _same(getattr(p2.view, name), getattr(s2.view, name), f'{where} p2 {name}')
         for name in ('max_rewards', 'last_action'):
@@ -470,20 +471,23 @@ def drive(
     b_size = py.batch_size
     episodes = 0
     for t in range(n_steps):
-        avail = py.get_avail_actions()
+        avail = py.avail_actions()
         acts = (rng.random(avail.shape) * avail).argmax(-1)
         step: tuple[Any, ...] = (acts,)
         if py.dual:  # two-sided mode: Player 2 also picks random legal actions
-            avail2 = py.get_avail_actions(2)
+            avail2 = py.avail_actions(2)
             step = (acts, (rng.random(avail2.shape) * avail2).argmax(-1))
-        r1, d1, i1 = py.step(*step)
+        s1 = py.step(*step)
+        d1 = s1.terminated | s1.truncated
         for sv in others:
-            r2, d2, i2 = sv.step(*step)
+            s2 = sv.step(*step)
             where = f'step {t} ({sv.accel})'
-            _same(r1, r2, f'{where} reward')
-            _same(d1, d2, f'{where} terminated')
-            assert json.dumps(i1) == json.dumps(i2), where
-            _same(i1, i2, f'{where} infos')
+            _same(s1.reward, s2.reward, f'{where} reward')
+            _same(s1.terminated, s2.terminated, f'{where} terminated')
+            _same(s1.truncated, s2.truncated, f'{where} truncated')
+            _same(s1.reward_enemy, s2.reward_enemy, f'{where} reward_enemy')
+            assert json.dumps(s1.infos) == json.dumps(s2.infos), where
+            _same(s1.infos, s2.infos, f'{where} infos')
             _compare(py, sv, where)
         ids = set(np.flatnonzero(d1).tolist())
         episodes += len(ids)
@@ -499,16 +503,17 @@ def drive(
                 kw['seeds'] = [new_seeds.get(b) for b in order]
             if names:
                 kw['opponents'] = [names.get(b) for b in order]
-            o1, s1 = py.reset(order, **kw)
+            py.reset(order, **kw)
+            o1, st1 = py.obs(), py.state()
             for sv in others:
                 where = f'step {t} ({sv.accel})'
-                o2, s2 = sv.reset(order, **kw)
-                _same((o1, s1), (o2, s2), f'{where} reset')
+                sv.reset(order, **kw)
+                _same((o1, st1), (sv.obs(), sv.state()), f'{where} reset')
                 _compare(py, sv, f'{where} after reset')
-                assert py.opponent_names() == sv.opponent_names(), where
+                assert py.runtime.opponent_names() == sv.runtime.opponent_names(), where
     for sv in others:
-        _same(py.max_rewards, sv.max_rewards, 'max_rewards')
-        assert py.get_stats() == sv.get_stats()
+        _same(py.runtime.max_rewards(), sv.runtime.max_rewards(), 'max_rewards')
+        assert py.runtime.counters() == sv.runtime.counters()
     return {'episodes': episodes, 'steps': n_steps * b_size}
 
 
@@ -549,8 +554,8 @@ def test_resolve_tiers(manifest_ok: None) -> None:
         'smac-portable', '3m', backend='zgame', seeds=[4, 9], batch_size=2, accel='rust'
     )
     assert env.accel == 'rust'
-    one = make_env('smac-portable', '3m', backend='pyref', seed=0, accel='rust')
-    assert one.vec.accel == 'rust'  # type: ignore[union-attr]
+    one = make_pymarl_env('smac-portable', '3m', backend='pyref', seed=0, accel='rust')
+    assert one.vec.accel == 'rust'
     # Non-classic recipes: auto falls back to services; explicit rust raises naming the blocker
     for preset, scenario, over, why in [
         ('smac-hard-portable', '3m', {'opponent.scripts': ('8m',)}, 'opponent.scripts'),
@@ -717,7 +722,7 @@ def e0_case(
     chk = Checking(tier)
     _install(sv, chk.kernels())
     scripted = sv.config.opponent.kind == 'scripted'
-    scripts = {20: {1: sv.opponent.pool[0]}} if scripted else None  # type: ignore[attr-defined]
+    scripts = {20: {1: sv._opponent.pool[0]}} if scripted else None  # type: ignore[attr-defined]
     before = Counter(native.fallbacks)
     drive([py, sv], n_steps, reseed={30: {2: 99}}, scripts=scripts)
     fell = native.fallbacks - before
@@ -1081,16 +1086,16 @@ def test_e0_rust_draw_random() -> None:
 
 
 def test_e0_streams_match_rng_stream() -> None:
-    """`rng_streams` row b matches `rng_stream`, and Rust's double draws match NumPy (verified
-    indirectly via stochastic_attack; directly checks stream keys here)."""
+    """`_rng_streams` row b matches `runtime.rng_stream`, and Rust's double draws match NumPy
+    (verified indirectly via stochastic_attack; directly checks stream keys here)."""
     env = make_vec_env('smacv2-portable', '10gen_terran', backend='pyref', batch_size=3, seed=21)
     env.reset()
     env.reset([2], seeds=[8])
     env.reset([0])
     frames = np.array([4, 0, 7])
-    st = env.rng_streams('attack', frames)
+    st = env._rng_streams('attack', frames)
     for b in range(3):
-        a, c = st(b).random(5), env.rng_stream('attack', b, int(frames[b])).random(5)
+        a, c = st(b).random(5), env.runtime.rng_stream('attack', b, int(frames[b])).random(5)
         assert np.array_equal(a, c)
     assert st.table().dtype == np.uint64 and st.table().shape == (4, 3)
 
@@ -1102,23 +1107,24 @@ def test_e0_fallbacks_give_reference_errors() -> None:
     acts = np.zeros((2, env.n_agents), np.int64)  # live units cannot take no-op
     with pytest.raises(ValueError, match='(?i)action'):
         env.step(acts)
-    world = env.world
-    view = copy.deepcopy(env.view)
+    world = env.runtime.world
+    assert world is not None
+    view = copy.deepcopy(env._view)
     bad = dataclasses.replace(world, x=world.x.copy())
     bad.x[0, 0] = np.nan  # NaN sort key falls back to reference
     k = accel.kernels('services')
     before = Counter(native.fallbacks)
     k.assign(view, bad, [0], env.catalog.ally_code)
     assert native.fallbacks['assign'] == before['assign'] + 1
-    ref = copy.deepcopy(env.view)
+    ref = copy.deepcopy(env._view)
     accel.PYTHON.assign(ref, bad, [0], env.catalog.ally_code)
     _same(ref.ally_slots, view.ally_slots, 'assign with NaN')
     gone = dataclasses.replace(world, alive=world.alive.copy())
     gone.alive[1, 0] = False
     with pytest.raises(Exception, match='(?i)scenario requires') as e_rust:
-        k.assign(copy.deepcopy(env.view), gone, [1], env.catalog.ally_code)
+        k.assign(copy.deepcopy(env._view), gone, [1], env.catalog.ally_code)
     with pytest.raises(Exception, match='(?i)scenario requires') as e_ref:
-        accel.PYTHON.assign(copy.deepcopy(env.view), gone, [1], env.catalog.ally_code)
+        accel.PYTHON.assign(copy.deepcopy(env._view), gone, [1], env.catalog.ally_code)
     assert type(e_rust.value) is type(e_ref.value) and str(e_rust.value) == str(e_ref.value)
     # Unsupported dtype (float32) falls back to reference and matches NumPy
     x = np.arange(6, dtype=np.float32).reshape(2, 3)
@@ -1363,7 +1369,7 @@ def test_e1_seeds_scripts_and_generation(backend: str) -> None:
     py, sv = _pair('smacv2-portable', '10gen_terran', STOCH, backend, 4, seeds=[11, 7, 5, 2])
     drive([py, sv], 60, reseed={25: {1: 9001, 3: 9003}})
     py, sv = _pair('smac-hard-portable', '2s3z', 'aligned-v4', backend, 3, seed=3)
-    pool = sv.opponent.pool  # type: ignore[attr-defined]
+    pool = sv._opponent.pool  # type: ignore[attr-defined]
     drive([py, sv], 60, scripts={10: {0: pool[-1]}, 30: {1: pool[0], 2: pool[-1]}})
 
 
@@ -1388,7 +1394,7 @@ def test_e1_rust_smac_hard(scenario: str, backend: str) -> None:
     envs = _envs('smac-hard-portable', scenario, None, backend, 3, tiers, seed=seed % 1000)
     assert classic_mod.rust_blockers(envs[0].config, envs[0].spec) == []
     before = Counter(native.fallbacks)
-    pool = envs[0].opponent.pool  # type: ignore[attr-defined]
+    pool = envs[0]._opponent.pool  # type: ignore[attr-defined]
     n = 3 * len(set(pool)) + 12
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', RuntimeWarning)  # script warnings (_compare checks _warned)
@@ -1418,7 +1424,7 @@ def test_e1_rust_script_warnings(backend: str) -> None:
             env.reset([0], opponents=['7q_vs_2bc_c'])
             env.step(np.zeros((2, env.n_agents), np.int64) + 1)
         got.append([(str(w.message), w.category, w.filename, w.lineno) for w in rec])
-        got[-1].append(env.opponent_errors().tolist())  # type: ignore[arg-type]
+        got[-1].append(env.runtime.opponent_errors().tolist())  # type: ignore[arg-type]
     assert got[0][0][2].replace('\\', '/').endswith('accel/__init__.py'), got[0]
     assert got[0] == got[1] == got[2]
 
@@ -1437,7 +1443,7 @@ def test_e1_rust_seeds_and_generation(backend: str) -> None:
     envs = _envs('smac-portable', 'MMM', 'acc-ram-cov-axo', backend, 2, tiers, seed=12)
     drive(envs, 50, reset_every=7, reseed={20: {1: 3}})
     envs = _envs('smac-hard-portable', '2s3z', 'aligned-v4', backend, 3, tiers, seed=3)
-    pool = envs[0].opponent.pool  # type: ignore[attr-defined]
+    pool = envs[0]._opponent.pool  # type: ignore[attr-defined]
     drive(envs, 60, scripts={10: {0: pool[-1]}, 30: {1: pool[0], 2: pool[-1]}})
     seeds = [1, 2, 3, 4]
     envs = _envs('smac-hard-portable', 'MMM', 'acc-ram-cov-axo', backend, 4, tiers, seeds=seeds)
@@ -1494,28 +1500,32 @@ def test_e1_rust_continuing_episode(backend: str, over: dict[str, Any]) -> None:
 
     def stop(side: int) -> np.ndarray:
         """Issue STOP when available for alive units, else NOOP."""
-        avail = envs[0].get_avail_actions(side)
+        avail = envs[0].avail_actions(side)
         return np.where(avail[..., 1] == 1, 1, 0).astype(np.int64)
 
     timeouts = 0
     for t in range(limit):
         step: tuple[Any, ...] = (stop(1), stop(2)) if envs[0].dual else (stop(1),)
         outs = [e.step(*step) for e in envs]
-        r0, d0, i0 = off.step(*step)
-        for (r, d, i), e in zip(outs, envs, strict=True):
-            _same(r, r0, f'step {t} ({e.accel}) reward')
-            _same(d, d0, f'step {t} ({e.accel}) terminated')
-            assert json.dumps(i) == json.dumps(outs[0][2]), (t, e.accel)
+        s0 = off.step(*step)
+        for s, e in zip(outs, envs, strict=True):
+            _same(s.reward, s0.reward, f'step {t} ({e.accel}) reward')
+            _same(s.terminated, s0.terminated, f'step {t} ({e.accel}) terminated')
+            _same(s.truncated, s0.truncated, f'step {t} ({e.accel}) truncated')
+            _same(s.reward_enemy, s0.reward_enemy, f'step {t} ({e.accel}) reward_enemy')
+            assert json.dumps(s.infos) == json.dumps(outs[0].infos), (t, e.accel)
             _compare(envs[0], e, f'step {t} ({e.accel})')
         # Only difference when enabled is episode_limit on the timeout step
-        assert all('episode_limit' not in x for x in i0), (t, i0)
-        hit = [x.pop('episode_limit', None) for x in outs[0][2]]
+        assert all('episode_limit' not in x for x in s0.infos), (t, s0.infos)
+        hit = [x.pop('episode_limit', None) for x in outs[0].infos]
         assert all(h in (None, True) for h in hit), (t, hit)
-        assert json.dumps(i0) == json.dumps(outs[0][2]), t
+        assert json.dumps(s0.infos) == json.dumps(outs[0].infos), t
         timeouts += sum(h is True for h in hit)
         if t < limit - 1:
             assert not any(hit), t
-    assert timeouts == int(envs[0].timeouts.sum()) == int(off.timeouts.sum()) > 0
+    assert (
+        timeouts == envs[0].runtime.counters()['timeouts'] == off.runtime.counters()['timeouts'] > 0
+    )
     if envs[0].dual:
         assert timeouts == 2
 

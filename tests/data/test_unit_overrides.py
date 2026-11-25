@@ -83,14 +83,14 @@ def test_env_attaches_overrides(preset, name):
 
     Constructing an SC2 env does not launch SC2."""
     env = make_vec_env(preset, name, backend='sc2')
-    assert env.scenario is not None and env.scenario.unit_overrides == (MARINE_55,)
+    assert env._scenario is not None and env._scenario.unit_overrides == (MARINE_55,)
     off = make_vec_env(preset, name, backend='sc2', overrides={'backend.unit_overrides': 'off'})
-    assert off.scenario is not None and off.scenario.unit_overrides == ()
+    assert off._scenario is not None and off._scenario.unit_overrides == ()
 
 
 def test_env_no_overrides_elsewhere():
     env = make_vec_env('smac-hard-portable', '3m', backend='sc2')
-    assert env.scenario is not None and env.scenario.unit_overrides == ()
+    assert env._scenario is not None and env._scenario.unit_overrides == ()
 
 
 def test_env_requires_capability():
@@ -121,9 +121,9 @@ def test_env_requires_capability():
 def test_pyref_applies_overrides(name):
     env = make_vec_env('smac-hard-portable', name, backend='pyref', seed=0)
     env.reset()
-    assert _marines(env.world)[1] == {(55.0, 55.0)}
-    if 2 in _marines(env.world):
-        assert _marines(env.world)[2] == {(45.0, 45.0)}
+    assert _marines(env.runtime.world)[1] == {(55.0, 55.0)}
+    if 2 in _marines(env.runtime.world):
+        assert _marines(env.runtime.world)[2] == {(45.0, 45.0)}
     off = make_vec_env(
         'smac-hard-portable',
         name,
@@ -132,7 +132,7 @@ def test_pyref_applies_overrides(name):
         overrides={'backend.unit_overrides': 'off'},
     )
     off.reset()
-    assert _marines(off.world)[1] == {(45.0, 45.0)}
+    assert _marines(off.runtime.world)[1] == {(45.0, 45.0)}
 
 
 # ---------------------------------------------------------------- SC2
@@ -146,12 +146,12 @@ def test_sc2_overrides_verified(preset):
     env = make_vec_env(preset, '6m_vs_10m', backend='sc2', seed=0)
     try:
         env.reset()
-        assert _marines(env.world) == {1: {(55.0, 55.0)}, 2: {(45.0, 45.0)}}
-        assert env.scenario is not None
+        assert _marines(env.runtime.world) == {1: {(55.0, 55.0)}, 2: {(45.0, 45.0)}}
+        assert env._scenario is not None
         wrong = dataclasses.replace(
-            env.scenario, unit_overrides=(dataclasses.replace(MARINE_55, health_max=60.0),)
+            env._scenario, unit_overrides=(dataclasses.replace(MARINE_55, health_max=60.0),)
         )
         with pytest.raises(ContractError, match=r'health_max.*\[55\.0\]'):
-            env.backend.reset([wrong], seeds=[0])
+            env.runtime.backend.reset([wrong], seeds=[0])
     finally:
         env.close()

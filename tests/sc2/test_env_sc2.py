@@ -7,8 +7,8 @@ from typing import Any
 import numpy as np
 import pytest
 
+from unismac.adapters.pymarl import make_pymarl_env
 from unismac.contract import CapabilityError
-from unismac.env import make_env
 
 pytestmark = pytest.mark.sc2
 
@@ -26,7 +26,7 @@ def _episode(env, rng) -> tuple[int, dict]:
 
 
 def test_smac_3m_random_episode():
-    env = make_env('smac', '3m', backend='sc2', seed=0)
+    env = make_pymarl_env('smac', '3m', backend='sc2', seed=0)
     try:
         assert env.get_env_info()['obs_shape'] == 30
         steps, info = _episode(env, np.random.default_rng(0))
@@ -38,7 +38,7 @@ def test_smac_3m_random_episode():
 
 
 def test_smac_portable_3m_random_episode():
-    env = make_env('smac-portable', '3m', backend='sc2', seed=0)
+    env = make_pymarl_env('smac-portable', '3m', backend='sc2', seed=0)
     try:
         assert (env.get_obs_size(), env.get_state_size(), env.get_total_actions()) == (30, 48, 9)
         steps, info = _episode(env, np.random.default_rng(0))
@@ -65,19 +65,20 @@ def test_smac_portable_mmm_heal():
     env = make_vec_env('smac-portable', 'MMM', backend='sc2', seed=0)
     try:
         env.reset()
-        world = env._world
+        world = env.runtime.world
         assert world is not None
         medivac = world.alive[0] & (world.unit_type[0] == 54)
         assert medivac.sum() == 2
         assert np.all(np.abs(world.energy[0, medivac] - 50.0) < 0.5)  # 1 loop ran on reset
         rng = np.random.default_rng(0)
-        backend: Any = env.backend  # Sc2Backend-specific last_action_results
+        backend: Any = env.runtime.backend  # Sc2Backend-specific last_action_results
         results: list[int] = []
         terminated, info = False, [{}]
         while not terminated:
             acts = _heal_first(env, rng)
-            _, done, info = env.step(acts)
-            terminated = bool(done[0])
+            step = env.step(acts)
+            info = step.infos
+            terminated = bool(step.terminated[0] or step.truncated[0])
             results += [r for _, k, r in backend.last_action_results if k == CommandKind.ABILITY]
         assert 'battle_won' in info[0]
         assert results and set(results) <= allowed, results
@@ -88,10 +89,10 @@ def test_smac_portable_mmm_heal():
 
 def _heal_first(env, rng) -> np.ndarray:
     """Random actions; redirect Medivac heals to injured targets for reliable Success."""
-    avail = env.get_avail_actions()[0]
-    allies = env._frame.allies
-    heals = env.actions.heals(env._ally_tables)[0]
-    n_no = env.actions.n_no_attack
+    avail = env.avail_actions()[0]
+    allies = env.runtime.frame().allies
+    heals = env.runtime.healers[0]
+    n_no = env._actions.n_no_attack
     acts = []
     for a, row in enumerate(avail):
         act = int(rng.choice(np.flatnonzero(row)))
@@ -106,7 +107,7 @@ def _heal_first(env, rng) -> np.ndarray:
 
 def test_smacv2_10gen_terran_random_episode():
     """smacv2 10gen_terran 5v5: explicit spawns (*_RL allies + std enemies) vs engine_ai."""
-    env = make_env('smacv2', '10gen_terran', backend='sc2', seed=0)
+    env = make_pymarl_env('smacv2', '10gen_terran', backend='sc2', seed=0)
     try:
         info = env.get_env_info()
         assert (info['obs_shape'], info['state_shape'], info['n_actions']) == (82, 120, 11)
@@ -122,7 +123,7 @@ def test_smacv2_10gen_terran_random_episode():
 
 
 def test_smacv2_3m_random_episode():
-    env = make_env('smacv2', '3m', backend='sc2', seed=0)
+    env = make_pymarl_env('smacv2', '3m', backend='sc2', seed=0)
     try:
         steps, info = _episode(env, np.random.default_rng(0))
         assert 0 < steps <= env.episode_limit and 'battle_won' in info
@@ -134,4 +135,4 @@ def test_smacv2_portable_10gen_random_episode():
     """smacv2-portable 10gen: opening_orders needs 2 user slots, while SMAC_Maps/32x32_flat
     has only 1 (JoinGame NoSpaceForUser) and new_maps lacks 32x32_flat: CapabilityError."""
     with pytest.raises(CapabilityError, match='new_maps'):
-        make_env('smacv2-portable', '10gen_protoss', backend='sc2', seed=0)
+        make_pymarl_env('smacv2-portable', '10gen_protoss', backend='sc2', seed=0)

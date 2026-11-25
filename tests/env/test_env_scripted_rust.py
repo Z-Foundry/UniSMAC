@@ -128,7 +128,7 @@ class Shadow:
         self.stats: Counter[str] = Counter()
 
     def _stream(self, b: int, frame: int) -> Any:
-        return Recorder(self.env.rng_stream('opponent', b, frame), self.choices, b, frame)
+        return Recorder(self.env._rng_stream('opponent', b, frame), self.choices, b, frame)
 
     def _rust(self) -> Any:
         rk = self.k.opponent_reset.__self__
@@ -159,7 +159,7 @@ class Shadow:
         before = dict(self.ref.errors)
         r = _call(accel.PYTHON.opponent_issue, self.ref, world, c_ref, active)
         g = _call(self.k.opponent_issue, opponent, world, command, active)
-        where = f'issue (steps={self.env.episode_steps.tolist()})'
+        where = f'issue (steps={self.env._episode_steps.tolist()})'
         self._same_outcome(r, g, where)
         _same_arrays(c_ref, command, f'{where} command')
         self._same_state(where)
@@ -182,7 +182,7 @@ class Shadow:
 def install_shadow(env: Any) -> Shadow:
     """Replace opponent kernels in a rust-tier env with shadow-checking wrappers."""
     k = env._k
-    sh = Shadow(env, env.opponent, k)
+    sh = Shadow(env, env._opponent, k)
     env._k = dataclasses.replace(k, opponent_reset=sh.reset, opponent_issue=sh.issue)
     return sh
 
@@ -249,8 +249,9 @@ def run_trajectory(
     dirs = rng.integers(2, 6, batch)
     k = 0
     for t in range(n_steps):
-        acts = policy_actions(env.get_avail_actions(), pol, dirs, rng)
-        _, done, _ = env.step(acts)
+        acts = policy_actions(env.avail_actions(), pol, dirs, rng)
+        step = env.step(acts)
+        done = step.terminated | step.truncated
         ids = set(np.flatnonzero(done).tolist())
         if t % reset_every == reset_every - 1:
             ids.add(int(rng.integers(batch)))
@@ -292,30 +293,30 @@ class FakeEnv:
     def __init__(self, name: str, seed: int, enemy_slots: np.ndarray, ally_slots: np.ndarray):
         b = enemy_slots.shape[0]
         self.spec = types.SimpleNamespace(name=name)
-        self.view = types.SimpleNamespace(enemy_slots=enemy_slots, ally_slots=ally_slots)
-        self.seed = seed
-        self.episode_steps = np.zeros(b, np.int64)
-        self.reset_count = np.zeros(b, np.int64)
+        self._view = types.SimpleNamespace(enemy_slots=enemy_slots, ally_slots=ally_slots)
+        self._seed = seed
+        self._episode_steps = np.zeros(b, np.int64)
+        self._reset_count = np.zeros(b, np.int64)
         self.abilities: list[list[list[int]]] | None = None
 
-    def rng_stream(self, name: str, b: int, frame: int = 0) -> np.random.Generator:
-        return rng_mod.stream(self.seed, name, b, int(self.reset_count[b]) - 1, frame)
+    def _rng_stream(self, name: str, b: int, frame: int = 0) -> np.random.Generator:
+        return rng_mod.stream(self._seed, name, b, int(self._reset_count[b]) - 1, frame)
 
-    def rng_streams(self, name: str, frames: np.ndarray) -> rng_mod.Streams:
-        keys = [rng_mod.stream_key(self.seed, name, b) for b in range(len(self.reset_count))]
+    def _rng_streams(self, name: str, frames: np.ndarray) -> rng_mod.Streams:
+        keys = [rng_mod.stream_key(self._seed, name, b) for b in range(len(self._reset_count))]
         k0, k1 = (np.array(k, np.uint64) for k in zip(*keys, strict=True))
-        ep = np.maximum(self.reset_count - 1, 0).astype(np.uint64)
+        ep = np.maximum(self._reset_count - 1, 0).astype(np.uint64)
         return rng_mod.Streams(k0, k1, np.asarray(frames).astype(np.uint64), ep)
 
-    def query_abilities(self) -> list[list[list[int]]] | None:
+    def _query_abilities(self) -> list[list[list[int]]] | None:
         return self.abilities
 
 
 def _base_world(scenario: str, seed: int) -> tuple[WorldState, np.ndarray, np.ndarray]:
     env = make_vec_env('smac-hard-portable', scenario, backend='zgame', batch_size=1, seed=seed)
     env.reset()
-    world = copy.deepcopy(env._world)
-    es, al = env.view.enemy_slots, env.view.ally_slots
+    world = copy.deepcopy(env.runtime.world)
+    es, al = env._view.enemy_slots, env._view.ally_slots
     assert world is not None and es is not None and al is not None
     out = world, es.copy(), al.copy()
     env.close()
@@ -407,8 +408,8 @@ def run_synthetic(
         for b in ids:
             if not first:
                 _fresh_row(world, base, b, rng)
-            env.reset_count[b] += 1
-            env.episode_steps[b] = 0
+            env._reset_count[b] += 1
+            env._episode_steps[b] = 0
         chosen = None
         if rng.random() < 0.7:
             chosen = [names[int(rng.integers(len(names)))] for _ in ids]
@@ -430,9 +431,11 @@ def run_synthetic(
         active = rng.random(batch) < 0.9
         cmd = Command.noop(batch, world.n_slots)
         sh.issue(opp, world, cmd, active)
-        env.episode_steps[active] += 1
+        env._episode_steps[active] += 1
         jump = rng.random(batch) < 0.03
-        env.episode_steps[jump] = rng.choice([49, 50, 99, 100, 149, 150, 199, 200], int(jump.sum()))
+        env._episode_steps[jump] = rng.choice(
+            [49, 50, 99, 100, 149, 150, 199, 200], int(jump.sum())
+        )
         gone = [b for b in range(batch) if not world.alive[b].any() or rng.random() < 0.02]
         ended = [
             b

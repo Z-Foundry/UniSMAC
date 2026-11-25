@@ -24,10 +24,10 @@ __all__ = ['settle', 'settle_enemy']
 def settle(
     env: VecEnv, active: np.ndarray, end: np.ndarray, cur: Frame, reward: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, list[dict[str, Any]]]:
-    """Return `(reward float64[B], terminated bool[B], infos)` and update `env.battles_game`,
-    `battles_won`, `timeouts`, `episode_count`, and `done` in place.
+    """Return `(reward float64[B], raw_done bool[B], infos)` and update `env._battles_game`,
+    `_battles_won`, `_timeouts`, `_episode_count`, and `_done` in place.
 
-    Inactive envs get `terminated=True`, empty info `{}`, and reward 0. Active envs record death
+    Inactive envs get `raw_done=True`, empty info `{}`, and reward 0. Active envs record death
     counts (health == 0); non-NONE `end` finishes the battle (adding `reward.win` / `reward.defeat`,
     or +/-1 if sparse); otherwise hitting `episode_limit` records a timeout (adding
     `episode_limit=True` to info when `continuing_episode` is enabled). Rewards are then scaled by
@@ -49,26 +49,26 @@ def settle(
         }
         if end[b] != NONE:
             terminated[b] = True
-            env.battles_game[b] += 1
+            env._battles_game[b] += 1
             if end[b] == WON:
-                env.battles_won[b] += 1
+                env._battles_won[b] += 1
                 info['battle_won'] = True
                 reward[b] = reward[b] + rc.win if not rc.sparse else 1
             elif end[b] == LOST:
                 reward[b] = reward[b] + rc.defeat if not rc.sparse else -1
-        elif env.episode_steps[b] >= env.episode_limit:
+        elif env._episode_steps[b] >= env.episode_limit:
             terminated[b] = True
             if env.config.termination.continuing_episode:
                 info['episode_limit'] = True
-            env.battles_game[b] += 1
-            env.timeouts[b] += 1
+            env._battles_game[b] += 1
+            env._timeouts[b] += 1
         if terminated[b]:
-            env.episode_count[b] += 1
+            env._episode_count[b] += 1
         infos.append(info)
     if rc.scale:
-        reward = reward / (env.max_rewards / rc.scale_rate)
+        reward = reward / (env._max_rewards / rc.scale_rate)
     reward = np.where(active, reward, 0.0)
-    env.done |= terminated
+    env._done |= terminated
     return reward, terminated, infos
 
 

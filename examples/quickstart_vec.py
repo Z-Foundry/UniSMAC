@@ -1,5 +1,9 @@
 """30-second vectorized rollout quickstart with UniSMAC (zero SC2 required).
 
+Demonstrates the purified `v0.2.0` `VecEnv` kernel:
+`env.reset() -> None`, noun projections (`obs()`, `state()`, `avail_actions()`),
+and `StepBatch` (`reward`, `terminated`, `truncated`, `infos`).
+
 Run:
     python examples/quickstart_vec.py
     python examples/quickstart_vec.py --scenario 2s3z --batch-size 64 --steps 200
@@ -88,22 +92,27 @@ def main() -> int:
         return 1
 
     with ctx as env:
-        obs, state = env.reset()
+        env.reset()
+        obs = env.obs()
+        state = env.state()
         rng = np.random.default_rng(args.seed)
         episodes = 0
         wins = 0
+        timeouts = 0
         total_reward = 0.0
 
         t0 = time.perf_counter()
         for _ in range(args.steps):
-            avail = env.get_avail_actions()
+            avail = env.avail_actions()
             actions = sample_valid_actions(avail, rng)
-            rewards, terminated, infos = env.step(actions)
-            total_reward += float(rewards.sum())
-            if terminated.any():
-                done_ids = np.flatnonzero(terminated).tolist()
+            batch = env.step(actions)
+            total_reward += float(batch.reward.sum())
+            done = batch.terminated | batch.truncated
+            if done.any():
+                done_ids = np.flatnonzero(done).tolist()
                 episodes += len(done_ids)
-                wins += sum(1 for i in done_ids if infos[i].get('battle_won'))
+                wins += sum(1 for i in done_ids if batch.infos[i].get('battle_won'))
+                timeouts += int(batch.truncated[done_ids].sum())
                 env.reset(done_ids)
         elapsed = time.perf_counter() - t0
 
@@ -113,7 +122,10 @@ def main() -> int:
         print(f'Profile         : {args.profile}')
         print(f'Obs / State     : {tuple(obs.shape)} / {tuple(state.shape)}')
         print(f'Env steps       : {env_steps:,} in {elapsed:.3f}s ({sps:,.0f} step/s)')
-        print(f'Episodes / Wins : {episodes} / {wins} (total reward: {total_reward:.2f})')
+        print(
+            f'Episodes / Wins : {episodes} / {wins} '
+            f'(timeouts: {timeouts}, total reward: {total_reward:.2f})'
+        )
 
     return 0
 

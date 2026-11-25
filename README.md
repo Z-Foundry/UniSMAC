@@ -6,7 +6,7 @@ English | [Chinese (zh-CN)](README_zh.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
 [![ZGame](https://img.shields.io/badge/Backend-ZGame%20Rust-orange.svg)](https://github.com/Z-Foundry/ZGame)
 
-**UniSMAC** is a unified, backend-swappable StarCraft Multi-Agent Challenge environment that brings **SMAC**, **SMACv2**, and **SMAC-Hard** under one clean API, one vectorized contract, and three interchangeable simulation backends:
+**UniSMAC** is a unified, backend-swappable StarCraft Multi-Agent Challenge environment that brings **SMAC**, **SMACv2**, and **SMAC-Hard** under one purified vectorized kernel, first-class RL ecosystem adapters, and three interchangeable simulation backends:
 
 - **`zgame`** (Rust, via [Z-Foundry/ZGame](https://github.com/Z-Foundry/ZGame), PyPI package `zfoundry-zgame`, imported as `zgame`): High-performance, deterministic simulation with **27×–91×** single-core speedups over Python and **zero StarCraft II dependency**.
 - **`pyref`** (Pure Python / NumPy): Readable, hackable executable reference specification with bitwise parity against `zgame`.
@@ -16,9 +16,9 @@ English | [Chinese (zh-CN)](README_zh.md)
 
 - **3 Benchmarks, 1 Process, Zero Conflicts**: Consolidates **84** registered benchmark scenarios across SMAC (23), SMACv2 (26), and SMAC-Hard (35) into 6 named presets (`smac`, `smacv2`, `smac-hard`, and 3 backend-portable `*-portable` presets). Eliminates upstream PySC2 map-registry collisions and patched-PySC2 conflicts so all benchmarks coexist in one process.
 - **76/84 Portable Scenarios Out-of-the-Box**: **76 / 84** scenarios run immediately on both `pyref` and `zgame` (`smac-portable` 23/23, `smacv2-portable` 26/26, `smac-hard-portable` 27/35; the remaining 8 SMAC-Hard maps either lack map/spawn assets or crash in SC2 4.10), with **76 / 76** automatically hitting full Rust environment acceleration (`accel='rust'`).
-- **Native Two-Sided Self-Play**: Built-in `opponent.kind='external'` mode with mirror spawning and the unbiased `sc2-symmetric` profile runs on **75 / 76** portable scenarios (all hitting `accel='rust'`), achieving mirror win-rate 95% CIs covering `0.50` across `2s3z`, `3s5z`, and `8m`.
+- **Native Two-Sided Self-Play**: Built-in `dual=True` (`opponent.kind='external'`) mode with mirror spawning and the unbiased `sc2-symmetric` profile runs on **75 / 76** portable scenarios (all hitting `accel='rust'`), achieving mirror win-rate 95% CIs covering `0.50` across `2s3z`, `3s5z`, and `8m`.
 - **High-Fidelity SC2 Alignment & Zero-Shot Transfer**: Policies trained purely in `zgame` transfer zero-shot to real StarCraft II 4.10 with dramatic improvements over heuristic baselines.
-- **Drop-In RL Ecosystem Interfaces**: `make_vec_env()` returns a batched `VecEnv` with per-episode `seeds` (batch-position invariant) and per-episode opponent selection; `make_env(..., batch_size=1)` returns a PyMARL/EPyMARL-compatible `UnismacEnv`.
+- **Purified Kernel + Multi-Ecosystem Adapters (`v0.2.0`)**: `make_vec_env()` exposes a minimal, orthogonal `VecEnv` kernel (`reset() -> None`, `step() -> StepBatch` with native `terminated`/`truncated`/`reward_enemy`, `obs()`/`state()`/`avail_actions()`, and `env.runtime`), while `unismac.adapters` provides drop-in adapters for **PyMARL/EPyMARL** (zero extra deps), **Gymnasium 1.0+ `Env` / `VectorEnv`** (`[gymnasium]`), and **PettingZoo `ParallelEnv`** (`[pettingzoo]`, single-sided and `dual=True` self-play). Upgrading from `v0.1.x`? See [MIGRATION.md](MIGRATION.md).
 
 ## Verified Benchmarks
 
@@ -50,6 +50,16 @@ On mainstream platforms (Linux `x86_64`/`aarch64`, macOS `arm64`/`x86_64`, Windo
 pip install unismac
 ```
 
+### Optional Ecosystem Adapters
+
+```bash
+pip install "unismac[gymnasium]"   # Gymnasium 1.0+ Env & VectorEnv adapter
+pip install "unismac[pettingzoo]"  # PettingZoo ParallelEnv adapter (single & dual self-play)
+pip install "unismac[adapters]"    # Both Gymnasium and PettingZoo adapters
+```
+
+The PyMARL / EPyMARL adapter (`unismac.adapters.pymarl`) requires **zero extra dependencies**.
+
 ### Pure-Python / Unsupported Platform Fallback
 
 On platforms without a matching `cp310-abi3` `zfoundry-zgame` wheel (e.g., glibc < 2.28, Alpine ARM64, RISC-V, or free-threaded Python 3.13t/3.14t), install UniSMAC in pure-Python mode (`pyref` backend, `accel='python'`):
@@ -71,54 +81,64 @@ export SC2PATH=/path/to/StarCraftII
 
 ## 30-Second Quickstart
 
-### 1. Fast Zero-SC2 Vectorized Rollout (`zgame`)
+### 1. Fast Zero-SC2 Vectorized Rollout (`VecEnv`)
 
 ```python
 import numpy as np
 from unismac import make_vec_env
 
 with make_vec_env("smac-portable", "8m", profile="sc2-native", batch_size=64, seed=0) as env:
-    obs, state = env.reset()  # obs: [64, 8, D], state: [64, S]; env.accel == "rust"
+    env.reset()
+    obs, state = env.obs(), env.state()  # obs: [64, 8, D], state: [64, S]; env.accel == "rust"
     rng = np.random.default_rng(0)
     for _ in range(100):
-        avail = env.get_avail_actions()
+        avail = env.avail_actions()
         actions = ((1.0 + rng.random(avail.shape)) * avail).argmax(axis=-1)
-        rewards, terminated, infos = env.step(actions)
-        if terminated.any():
-            env.reset(np.flatnonzero(terminated).tolist())
+        batch = env.step(actions)  # StepBatch(reward, terminated, truncated, infos)
+        done = batch.terminated | batch.truncated
+        if done.any():
+            env.reset(np.flatnonzero(done).tolist())
 ```
 
 ### 2. Symmetric Two-Sided Self-Play
 
 ```python
-import numpy as np
 from unismac import make_vec_env
 
 with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as env:
     env.reset()
-    obs_p1, obs_p2 = env.get_obs(side=1), env.get_obs(side=2)
-    avail_p1, avail_p2 = env.get_avail_actions(side=1), env.get_avail_actions(side=2)
-    r_p1, terminated, infos = env.step(avail_p1.argmax(-1), enemy_actions=avail_p2.argmax(-1))
-    r_p2 = np.array([info.get("reward_enemy", 0.0) for info in infos])
+    obs_p1, obs_p2 = env.obs(side=1), env.obs(side=2)
+    avail_p1, avail_p2 = env.avail_actions(side=1), env.avail_actions(side=2)
+    batch = env.step(avail_p1.argmax(-1), enemy_actions=avail_p2.argmax(-1))
+    r_p1, r_p2 = batch.reward, batch.reward_enemy
 ```
 
-### 3. One-Line Switch to Real SC2 Evaluation or Pure-Python `pyref`
+### 3. Ecosystem Adapters (Gymnasium, PettingZoo, PyMARL) & Live SC2 Switching
 
 ```python
-from unismac import make_env
+# Gymnasium 1.0+ VectorEnv (`pip install "unismac[gymnasium]"`)
+from unismac.adapters.gymnasium import make_gym_vec_env
+gym_env = make_gym_vec_env("smac-portable", "8m", profile="sc2-native", batch_size=32, seed=0)
+obs, info = gym_env.reset(seed=0)  # obs = {"obs": ..., "state": ..., "action_mask": int8}
 
-# Real StarCraft II evaluation (requires `pip install "unismac[sc2]"` and SC2PATH)
-sc2_env = make_env("smac-portable", "8m", backend="sc2", seed=0)  # MultiAgentEnv-compatible UnismacEnv
+# PettingZoo ParallelEnv, including two-sided self-play (`pip install "unismac[pettingzoo]"`)
+from unismac.adapters.pettingzoo import make_pettingzoo_env
+pz_env = make_pettingzoo_env("smac-portable", "2s3z", dual=True, seed=0)
+obs, infos = pz_env.reset(seed=0)  # agents: ally_0..ally_4, enemy_0..enemy_4
 
-# Or readable pure-Python reference backend (no SC2 or Rust needed)
-pyref_env = make_env("smac-portable", "8m", backend="pyref", profile="sc2-native", seed=0)
+# PyMARL / EPyMARL MultiAgentEnv & one-line live SC2 evaluation (zero extra deps for zgame/pyref)
+from unismac.adapters.pymarl import make_pymarl_env
+sc2_env = make_pymarl_env("smac-portable", "8m", backend="sc2", seed=0)
+pyref_env = make_pymarl_env("smac-portable", "8m", backend="pyref", profile="sc2-native", seed=0)
 ```
 
 Runnable scripts are in [`examples/`](examples/quickstart_vec.py):
-- [`examples/quickstart_vec.py`](examples/quickstart_vec.py) — vectorized single-side rollout
-- [`examples/self_play.py`](examples/self_play.py) — two-sided symmetric self-play
-- [`examples/marl_loop_minimal.py`](examples/marl_loop_minimal.py) — PyMARL/CleanRL-style rollout, truncation handling, and per-env `seeds` eval
-- [`examples/sc2_eval.py`](examples/sc2_eval.py) — backend switching (`zgame` / `pyref` / `sc2`)
+- [`examples/quickstart_vec.py`](examples/quickstart_vec.py) — vectorized single-side rollout (`VecEnv` + `StepBatch`)
+- [`examples/self_play.py`](examples/self_play.py) — two-sided symmetric self-play (`dual=True`, `batch.reward_enemy`)
+- [`examples/marl_loop_minimal.py`](examples/marl_loop_minimal.py) — zero-dependency MARL rollout, `terminated`/`truncated` bootstrapping, and per-env `seeds` eval
+- [`examples/sc2_eval.py`](examples/sc2_eval.py) — PyMARL adapter & backend switching (`zgame` / `pyref` / `sc2`)
+- [`examples/gymnasium_vec.py`](examples/gymnasium_vec.py) — Gymnasium 1.0+ `VectorEnv` across `next_step`, `same_step`, and `disabled` autoreset modes
+- [`examples/pettingzoo_parallel.py`](examples/pettingzoo_parallel.py) — PettingZoo `ParallelEnv` for single-sided cooperative play and `dual=True` self-play
 
 ## CLI
 
@@ -136,12 +156,14 @@ unismac bench --preset smac-portable --scenario 8m \
 
 | Document | Contents |
 | --- | --- |
-| [Architecture](docs/architecture.md) | Layered design, backend contract, SC2 / PyRef / ZGame backends, and cross-package versioning |
+| [Architecture](docs/architecture.md) | Layered design, purified kernel + adapters boundary, SC2 / PyRef / ZGame backends, and cross-package versioning |
 | [Architecture & Code Map](docs/code-map.md) | 30-minute reading map: `step()` trace, 1:1 `pyref` ↔ `zgame` mirror, `accel` routing, and FAQ |
-| [Environment Interface](docs/interface.md) | Public `VecEnv`/`UnismacEnv` API, `profile=`/`dual=`, per-episode seeds/opponents, `accel` tiers, and CLI |
+| [Environment Interface](docs/interface.md) | Purified `VecEnv`, `StepBatch`, `RuntimeView`, `profile=`/`dual=`, per-episode seeds/opponents, `accel` tiers, and CLI |
+| [Ecosystem Adapters](docs/adapters.md) | PyMARL, Gymnasium 1.0+ (`Env`/`VectorEnv`), and PettingZoo (`ParallelEnv` + `parallel_to_aec`) selection matrix and contracts |
 | [Benchmarks & Presets](docs/benchmarks.md) | SMAC / SMACv2 / SMAC-Hard differences, 84 scenarios (76 portable runnable), SC2 setup & asset extraction |
 | [Profiles & Configuration](docs/profiles-and-config.md) | Public profiles (`sc2-native`, `sc2-explore`, `sc2-symmetric`), legacy aliases, and grouped `PyrefConfig` reference |
-| [Contributing](CONTRIBUTING.md) | Developer setup, [`Makefile`](Makefile) targets, 7-layer test suite, and `rust_manifest.json` workflow |
+| [Migration Guide (`v0.1.x` → `v0.2.0`)](MIGRATION.md) | Symbol mapping and before/after examples for upgrading to the purified `v0.2.0` kernel and `unismac.adapters` |
+| [Contributing](CONTRIBUTING.md) | Developer setup, [`Makefile`](Makefile) targets, 8-layer test suite, and `rust_manifest.json` workflow |
 
 ## Citation
 

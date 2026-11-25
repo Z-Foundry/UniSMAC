@@ -56,22 +56,24 @@ def _overrides(over: Any) -> dict[str, Any] | None:
 
 def _same_row(big: VecEnv, b: int, one: VecEnv) -> None:
     """Assert row b of big matches batch=1 env one bitwise (including all WorldState fields)."""
+    assert big.runtime.world is not None and one.runtime.world is not None
     pairs = [
-        ('obs', big.get_obs()[b], one.get_obs()[0]),
-        ('state', big.get_state()[b], one.get_state()[0]),
-        ('avail', big.get_avail_actions()[b], one.get_avail_actions()[0]),
-        ('max_reward', big.max_rewards[b], one.max_rewards[0]),
-        ('reset_count', big.reset_count[b], one.reset_count[0]),
+        ('obs', big.obs()[b], one.obs()[0]),
+        ('state', big.state()[b], one.state()[0]),
+        ('avail', big.avail_actions()[b], one.avail_actions()[0]),
+        ('max_reward', big.runtime.max_rewards()[b], one.runtime.max_rewards()[0]),
+        ('reset_count', big.runtime.reset_count()[b], one.runtime.reset_count()[0]),
     ]
     pairs += [
-        (f.name, getattr(big.world, f.name)[b], getattr(one.world, f.name)[0])
+        (f.name, getattr(big.runtime.world, f.name)[b], getattr(one.runtime.world, f.name)[0])
         for f in fields(WorldState)
     ]
     for name, x, y in pairs:
         np.testing.assert_array_equal(x, y, err_msg=f'env {b} {name}')
-    assert big.opponent_names()[b] == one.opponent_names()[0]
-    if b in big.last_scenarios and 0 in one.last_scenarios:
-        assert big.last_scenarios[b] == one.last_scenarios[0]
+    assert big.runtime.opponent_names()[b] == one.runtime.opponent_names()[0]
+    b_sc, o_sc = big.runtime.last_scenarios()[b], one.runtime.last_scenarios()[0]
+    if b_sc is not None and o_sc is not None:
+        assert b_sc == o_sc
 
 
 def _actions(rngs: list[np.random.Generator], avail: np.ndarray) -> np.ndarray:
@@ -114,11 +116,17 @@ def test_batch_rows_match_single_envs(
         _same_row(big, b, ones[b])
     resets = 0
     for t in range(n_steps):
-        acts = _actions(rngs, big.get_avail_actions())
-        reward, term, infos = big.step(acts)
+        acts = _actions(rngs, big.avail_actions())
+        step = big.step(acts)
+        term = step.terminated | step.truncated
         for b, one in enumerate(ones):
-            r1, d1, i1 = one.step(acts[b : b + 1])
-            assert (r1[0], d1[0], i1[0]) == (reward[b], term[b], infos[b]), f'step {t} env {b}'
+            s1 = one.step(acts[b : b + 1])
+            assert (s1.reward[0], s1.terminated[0], s1.truncated[0], s1.infos[0]) == (
+                step.reward[b],
+                step.terminated[b],
+                step.truncated[b],
+                step.infos[b],
+            ), f'step {t} env {b}'
             _same_row(big, b, one)
         ids = set(np.flatnonzero(term).tolist())
         new_seeds: dict[int, int] = {}
@@ -145,10 +153,10 @@ def test_batch_rows_match_single_envs(
                 )
                 _same_row(big, b, ones[b])
             if names:
-                assert big.opponent_names()[0] == 'atkn'
+                assert big.runtime.opponent_names()[0] == 'atkn'
             resets += len(order)
     assert resets >= 8
-    assert big.env_seeds == (SEEDS[0], 9001, SEEDS[2], 9003)
+    assert big.runtime.env_seeds == (SEEDS[0], 9001, SEEDS[2], 9003)
     big.close()
     for one in ones:
         one.close()
@@ -171,48 +179,53 @@ def test_reseeded_row_matches_fresh_env(backend: str) -> None:
     env.reset()
     ref.reset()
     for _ in range(4):
-        acts = _actions(rngs, env.get_avail_actions())
+        acts = _actions(rngs, env.avail_actions())
         env.step(acts)
         ref.step(acts)
     env.reset([1], seeds=[77])
     ref.reset([1])
     fresh = make_vec_env('smacv2-portable', '10gen_terran', seed=77, **kw)
     fresh.reset()
-    assert env.env_seeds == (None, 77, None) and env.reset_count.tolist() == [1, 1, 1]
+    assert env.runtime.env_seeds == (None, 77, None) and env.runtime.reset_count().tolist() == [
+        1,
+        1,
+        1,
+    ]
     ref_rng = np.random.default_rng(9)
     for t in range(12):
         _same_row(env, 1, fresh)
+        assert env.runtime.world is not None and ref.runtime.world is not None
         for b in (0, 2):
-            np.testing.assert_array_equal(env.get_obs()[b], ref.get_obs()[b])
-            np.testing.assert_array_equal(env.world.x[b], ref.world.x[b])
-        acts = _actions(rngs, env.get_avail_actions())
-        _, term, _ = env.step(acts)
+            np.testing.assert_array_equal(env.obs()[b], ref.obs()[b])
+            np.testing.assert_array_equal(env.runtime.world.x[b], ref.runtime.world.x[b])
+        acts = _actions(rngs, env.avail_actions())
+        step = env.step(acts)
         fresh.step(acts[1:2])
-        acts[1] = [int(ref_rng.choice(np.flatnonzero(r))) for r in ref.get_avail_actions()[1]]
+        acts[1] = [int(ref_rng.choice(np.flatnonzero(r))) for r in ref.avail_actions()[1]]
         ref.step(acts)
-        assert not term.any(), t
+        assert not (step.terminated | step.truncated).any(), t
 
 
 def test_backend_seeds_per_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Backend seeds: default `seed + b` (reading `env.seed` on reset); per-env seeded slots use
+    """Backend seeds: default `seed + b` (reading `env._seed` on reset); per-env seeded slots use
     their own seed; slots re-seeded on reset keep the new seed thereafter."""
 
     def recorder(env: VecEnv) -> list[list[int | None]]:
         calls: list[list[int | None]] = []
-        orig = env.backend.reset
+        orig = env.runtime.backend.reset
 
         def reset(scenarios: Any, *, env_ids: Any = None, seeds: Any = None) -> WorldState:
             calls.append(list(seeds))
             return orig(scenarios, env_ids=env_ids, seeds=seeds)
 
-        monkeypatch.setattr(env.backend, 'reset', reset)
+        monkeypatch.setattr(env.runtime.backend, 'reset', reset)
         return calls
 
     env = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=3, seed=10)
     calls = recorder(env)
     env.reset()
     env.reset([2])
-    env.seed = 100
+    env._seed = 100
     env.reset([1])
     env.reset([0, 1], seeds=[5, None])
     env.reset([0])
@@ -222,13 +235,13 @@ def test_backend_seeds_per_env(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = recorder(env)
     env.reset()
     env.reset([1])
-    assert env.seed is None and env.env_seeds == (4, 5, 6)
+    assert env._seed is None and env.runtime.env_seeds == (4, 5, 6)
     assert calls == [[4, 5, 6], [5]]
 
     env = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=2)
     calls = recorder(env)
     env.reset()
-    assert calls == [[None, None]] and env.env_seeds == (None, None)
+    assert calls == [[None, None]] and env.runtime.env_seeds == (None, None)
 
 
 def test_rng_stream_keys() -> None:
@@ -242,9 +255,9 @@ def test_rng_stream_keys() -> None:
     def same(a: np.random.Generator, b: np.random.Generator) -> bool:
         return bool(np.array_equal(a.random(8), b.random(8)))
 
-    assert same(env.rng_stream('attack', 0, 3), rng_mod.stream(21, 'attack', 0, 1, 3))
-    assert same(env.rng_stream('generators', 1), rng_mod.stream(21, 'generators', 1, 0))
-    assert same(env.rng_stream('opponent', 2, 5), rng_mod.stream(8, 'opponent', 0, 1, 5))
+    assert same(env.runtime.rng_stream('attack', 0, 3), rng_mod.stream(21, 'attack', 0, 1, 3))
+    assert same(env.runtime.rng_stream('generators', 1), rng_mod.stream(21, 'generators', 1, 0))
+    assert same(env.runtime.rng_stream('opponent', 2, 5), rng_mod.stream(8, 'opponent', 0, 1, 5))
 
 
 # Procedural gen on non-*_gen maps: catalog min_code is fit from episode 0 allies (seeds 2 and 8
@@ -277,11 +290,11 @@ def test_unit_catalog_fitted_per_env() -> None:
     for t in range(10):
         for b, one in enumerate(ones):
             _same_row(big, b, one)
-        acts = _actions(rngs, big.get_avail_actions())
-        _, term, _ = big.step(acts)
+        acts = _actions(rngs, big.avail_actions())
+        step = big.step(acts)
         for b, one in enumerate(ones):
             one.step(acts[b : b + 1])
-        assert not term.any(), t
+        assert not (step.terminated | step.truncated).any(), t
 
     # Default (batch seed) still fits from env 0 of first reset and shares across batch
     env = make_vec_env('smacv2-portable', '2s3z', batch_size=4, seed=3, **kw)
@@ -298,12 +311,12 @@ def test_seed_argument_errors() -> None:
         make_vec_env('smac-portable', '3m', backend='pyref', batch_size=2, seeds=[1, 2.5])  # type: ignore[list-item]
     env = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=2, seed=1)
     env.reset()
-    before = env.reset_count.copy()
+    before = env.runtime.reset_count()
     with pytest.raises(ValueError, match='seeds'):
         env.reset([0], seeds=[1, 2])
     with pytest.raises(ContractError):
         env.reset([0, 0], seeds=[1, 2])
     with pytest.raises(ContractError):
         env.reset([2])
-    np.testing.assert_array_equal(env.reset_count, before)
-    assert env.env_seeds == (None, None)
+    np.testing.assert_array_equal(env.runtime.reset_count(), before)
+    assert env.runtime.env_seeds == (None, None)

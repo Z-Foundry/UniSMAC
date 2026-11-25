@@ -37,6 +37,7 @@ jobs:
               bad = [n for n in names if n.endswith(('.so', '.pyd', '_zgame.build.json'))]
               assert not bad, f'unexpected native artifacts in unismac wheel: {bad}'
               assert 'unismac/env/accel/rust_manifest.json' in names, 'missing rust_manifest.json in wheel'
+              assert 'unismac/adapters/pymarl.py' in names, 'missing adapters subpackage in wheel'
           print('Wheel audit clean:', whls[0])
           "
           uv venv .venv-test

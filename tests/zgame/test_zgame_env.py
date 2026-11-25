@@ -26,27 +26,31 @@ def _random_actions(rng: np.random.Generator, avail: np.ndarray) -> np.ndarray:
 def test_portable_zgame_episode_batch8_and_partial_reset() -> None:
     env = make_vec_env('smac-portable', '3m', backend='zgame', batch_size=8, seed=0)
     assert isinstance(env, VecEnv)
-    obs, state = env.reset()
+    env.reset()
+    obs, state = env.obs(), env.state()
     assert obs.shape == (8, 3, 30) and state.shape == (8, 48)
     rng = np.random.default_rng(0)
     t = 0
-    while not env.done.all():
-        _, terminated, infos = env.step(_random_actions(rng, env.get_avail_actions()))
+    while not env.runtime.done().all():
+        step = env.step(_random_actions(rng, env.avail_actions()))
+        done_now = step.terminated | step.truncated
         t += 1
-        for b in np.flatnonzero(terminated):
-            assert infos[b] == {} or 'battle_won' in infos[b]
-    assert t <= env.episode_limit and env.get_stats()['battles_game'] == 8
+        for b in np.flatnonzero(done_now):
+            assert step.infos[b] == {} or 'battle_won' in step.infos[b]
+    assert t <= env.episode_limit and env.runtime.counters()['battles_game'] == 8
     # Partially reset a subset of finished envs and step until all finish again
-    before = env.get_obs().copy()
-    obs, _ = env.reset(env_ids=[1, 6])
-    assert not env.done[1] and not env.done[6] and env.done[0]
+    before = env.obs().copy()
+    env.reset(env_ids=[1, 6])
+    obs = env.obs()
+    done_mask = env.runtime.done()
+    assert not done_mask[1] and not done_mask[6] and done_mask[0]
     np.testing.assert_array_equal(obs[0], before[0])
-    while not env.done.all():
-        env.step(_random_actions(rng, env.get_avail_actions()))
-    assert env.get_stats()['battles_game'] == 10
+    while not env.runtime.done().all():
+        env.step(_random_actions(rng, env.avail_actions()))
+    assert env.runtime.counters()['battles_game'] == 10
     env.reset()
-    assert not env.done.any()
-    env.step(_random_actions(rng, env.get_avail_actions()))
+    assert not env.runtime.done().any()
+    env.step(_random_actions(rng, env.avail_actions()))
     env.close()
 
 
@@ -57,14 +61,16 @@ def test_portable_env_matches_pyref(scenario: str) -> None:
 
     def run(backend: str) -> list[tuple[np.ndarray, ...]]:
         env = make_vec_env('smac-portable', scenario, backend=backend, batch_size=3, seed=4)  # type: ignore[arg-type]
-        obs, state = env.reset()
-        out: list[tuple[np.ndarray, ...]] = [(obs, state)]
+        env.reset()
+        out: list[tuple[np.ndarray, ...]] = [(env.obs(), env.state())]
         rng = np.random.default_rng(1)
-        while not env.done.all():
-            avail = env.get_avail_actions()
-            reward, terminated, _ = env.step(_random_actions(rng, avail))
-            out.append((avail, reward, terminated, env.get_obs(), env.get_state()))
-        out.append((np.array([env.get_stats()['battles_won']]),))
+        while not env.runtime.done().all():
+            avail = env.avail_actions()
+            step = env.step(_random_actions(rng, avail))
+            out.append(
+                (avail, step.reward, step.terminated, step.truncated, env.obs(), env.state())
+            )
+        out.append((np.array([env.runtime.counters()['battles_won']]),))
         env.close()
         return out
 
@@ -99,14 +105,16 @@ def test_portable_env_m1_matches_pyref(scenario: str) -> None:
             seed=4,
             overrides=_m1_overrides(),
         )
-        obs, state = env.reset()
-        out: list[tuple[np.ndarray, ...]] = [(obs, state)]
+        env.reset()
+        out: list[tuple[np.ndarray, ...]] = [(env.obs(), env.state())]
         rng = np.random.default_rng(2)
-        while not env.done.all():
-            avail = env.get_avail_actions()
-            reward, terminated, _ = env.step(_random_actions(rng, avail))
-            out.append((avail, reward, terminated, env.get_obs(), env.get_state()))
-        out.append((np.array([env.get_stats()['battles_won']]),))
+        while not env.runtime.done().all():
+            avail = env.avail_actions()
+            step = env.step(_random_actions(rng, avail))
+            out.append(
+                (avail, step.reward, step.terminated, step.truncated, env.obs(), env.state())
+            )
+        out.append((np.array([env.runtime.counters()['battles_won']]),))
         env.close()
         return out
 
@@ -145,14 +153,16 @@ def test_portable_env_m2_mmm_matches_pyref(profile: str) -> None:
             seed=5,
             overrides=_m2_overrides(profile),
         )
-        obs, state = env.reset()
-        out: list[tuple[np.ndarray, ...]] = [(obs, state)]
+        env.reset()
+        out: list[tuple[np.ndarray, ...]] = [(env.obs(), env.state())]
         rng = np.random.default_rng(3)
-        while not env.done.all():
-            avail = env.get_avail_actions()
-            reward, terminated, _ = env.step(_random_actions(rng, avail))
-            out.append((avail, reward, terminated, env.get_obs(), env.get_state()))
-        out.append((np.array([env.get_stats()['battles_won']]),))
+        while not env.runtime.done().all():
+            avail = env.avail_actions()
+            step = env.step(_random_actions(rng, avail))
+            out.append(
+                (avail, step.reward, step.terminated, step.truncated, env.obs(), env.state())
+            )
+        out.append((np.array([env.runtime.counters()['battles_won']]),))
         env.close()
         return out
 
@@ -182,14 +192,14 @@ def _v4_run(
         seed=seed,
         overrides=over,
     )
-    obs, state = env.reset()
-    out: list[tuple[np.ndarray, ...]] = [(obs, state)]
+    env.reset()
+    out: list[tuple[np.ndarray, ...]] = [(env.obs(), env.state())]
     rng = np.random.default_rng(seed)
-    while not env.done.all():
-        avail = env.get_avail_actions()
-        reward, terminated, _ = env.step(_random_actions(rng, avail))
-        out.append((avail, reward, terminated, env.get_obs(), env.get_state()))
-    out.append((np.array([env.get_stats()['battles_won']]),))
+    while not env.runtime.done().all():
+        avail = env.avail_actions()
+        step = env.step(_random_actions(rng, avail))
+        out.append((avail, step.reward, step.terminated, step.truncated, env.obs(), env.state()))
+    out.append((np.array([env.runtime.counters()['battles_won']]),))
     env.close()
     return out
 
@@ -296,7 +306,7 @@ def test_zgame_threads_passed_to_backend() -> None:
         env = make_vec_env(
             'smac-portable', '3m', backend='zgame', batch_size=4, zgame_threads=threads
         )
-        be = env.backend
+        be = env.runtime.backend
         assert isinstance(be, ZgameBackend) and be.threads == want
 
 
@@ -317,17 +327,21 @@ def _dual_run(backend: str, preset: str, scenario: str, profile: str, seed: int)
 
     over = {**profile_overrides(profile)[1], 'opponent.kind': 'external'}
     env = make_vec_env(preset, scenario, backend=backend, batch_size=2, seed=seed, overrides=over)  # type: ignore[arg-type]
-    obs, state = env.reset()
-    out: list[tuple] = [(obs, state, env.get_obs(2), env.get_state(2))]
+    env.reset()
+    out: list[tuple] = [(env.obs(), env.state(), env.obs(2), env.state(2))]
     rng = np.random.default_rng(seed)
-    while not env.done.all():
-        av1, av2 = env.get_avail_actions(), env.get_avail_actions(2)
-        reward, terminated, infos = env.step(_random_actions(rng, av1), _random_actions(rng, av2))
-        side2 = np.array([i.get('reward_enemy', 0.0) for i in infos])
-        lost = np.array([i.get('battle_lost', False) for i in infos])
-        out.append((av1, av2, reward, side2, lost, terminated))
-        out.append((env.get_obs(), env.get_state(), env.get_obs(2), env.get_state(2)))
-    out.append((np.array([env.get_stats()['battles_won']]),))
+    while not env.runtime.done().all():
+        av1, av2 = env.avail_actions(), env.avail_actions(2)
+        step = env.step(_random_actions(rng, av1), _random_actions(rng, av2))
+        side2 = (
+            step.reward_enemy
+            if step.reward_enemy is not None
+            else np.array([i.get('reward_enemy', 0.0) for i in step.infos])
+        )
+        lost = np.array([i.get('battle_lost', False) for i in step.infos])
+        out.append((av1, av2, step.reward, side2, lost, step.terminated, step.truncated))
+        out.append((env.obs(), env.state(), env.obs(2), env.state(2)))
+    out.append((np.array([env.runtime.counters()['battles_won']]),))
     env.close()
     return out
 
@@ -480,30 +494,36 @@ def _m12_env_compare(
             seed=seed,
             overrides=over,
         )
-        obs, state = env.reset()
+        env.reset()
         out: list[tuple[np.ndarray, ...]] = [
-            (obs, state, env.get_obs(2), env.get_state(2)) if dual else (obs, state)
+            (env.obs(), env.state(), env.obs(2), env.state(2)) if dual else (env.obs(), env.state())
         ]
         rng = np.random.default_rng(seed)
-        step = 0
-        while not env.done.all():
-            avail = env.get_avail_actions()
+        step_idx = 0
+        while not env.runtime.done().all():
+            avail = env.avail_actions()
             act = _random_actions(rng, avail)
             if dual:
-                av2 = env.get_avail_actions(2)
-                reward, terminated, infos = env.step(act, _random_actions(rng, av2))
-                side2 = np.array([i.get('reward_enemy', 0.0) for i in infos])
-                lost = np.array([i.get('battle_lost', False) for i in infos])
-                out.append((avail, av2, reward, side2, lost, terminated))
-                out.append((env.get_obs(), env.get_state(), env.get_obs(2), env.get_state(2)))
+                av2 = env.avail_actions(2)
+                res = env.step(act, _random_actions(rng, av2))
+                side2 = (
+                    res.reward_enemy
+                    if res.reward_enemy is not None
+                    else np.array([i.get('reward_enemy', 0.0) for i in res.infos])
+                )
+                lost = np.array([i.get('battle_lost', False) for i in res.infos])
+                out.append((avail, av2, res.reward, side2, lost, res.terminated, res.truncated))
+                out.append((env.obs(), env.state(), env.obs(2), env.state(2)))
             else:
-                reward, terminated, _ = env.step(act)
-                out.append((avail, reward, terminated, env.get_obs(), env.get_state()))
-            if batch_size >= 2 and step == 10:
-                p_obs, p_state = env.reset(env_ids=[0])
-                out.append((p_obs, p_state))
-            step += 1
-        out.append((np.array([env.get_stats()['battles_won']]),))
+                res = env.step(act)
+                out.append(
+                    (avail, res.reward, res.terminated, res.truncated, env.obs(), env.state())
+                )
+            if batch_size >= 2 and step_idx == 10:
+                env.reset(env_ids=[0])
+                out.append((env.obs(), env.state()))
+            step_idx += 1
+        out.append((np.array([env.runtime.counters()['battles_won']]),))
         env.close()
         return out
 
@@ -611,7 +631,7 @@ def test_b02_corridor_rghf_nat_cbt_bitwise_rust_and_still_wins() -> None:
     import dataclasses
 
     def still_policy(env: VecEnv, _rng: np.random.Generator) -> np.ndarray:
-        avail = env.get_avail_actions()
+        avail = env.avail_actions()
         return np.where(avail[..., 1] == 1, 1, 0).astype(np.int64)
 
     from unismac import profiles
@@ -639,27 +659,29 @@ def test_b02_corridor_rghf_nat_cbt_bitwise_rust_and_still_wins() -> None:
         )
         try:
             assert ep.accel == 'rust' and ez.accel == 'rust'
-            obs_p, st_p = ep.reset()
-            obs_z, st_z = ez.reset()
-            np.testing.assert_array_equal(obs_p, obs_z)
-            np.testing.assert_array_equal(st_p, st_z)
+            ep.reset()
+            ez.reset()
+            np.testing.assert_array_equal(ep.obs(), ez.obs())
+            np.testing.assert_array_equal(ep.state(), ez.state())
             rng = np.random.default_rng(6)
             for _ in range(30):
-                av_p, av_z = ep.get_avail_actions(), ez.get_avail_actions()
+                av_p, av_z = ep.avail_actions(), ez.avail_actions()
                 np.testing.assert_array_equal(av_p, av_z)
                 acts = _random_actions(rng, av_p)
-                rp, tp, ip = ep.step(acts)
-                rz, tz, iz = ez.step(acts)
-                np.testing.assert_array_equal(rp, rz)
-                np.testing.assert_array_equal(tp, tz)
-                assert ip == iz
-                for f in dataclasses.fields(ep.world):
-                    ap, az = getattr(ep.world, f.name), getattr(ez.world, f.name)
+                sp = ep.step(acts)
+                sz = ez.step(acts)
+                np.testing.assert_array_equal(sp.reward, sz.reward)
+                np.testing.assert_array_equal(sp.terminated, sz.terminated)
+                np.testing.assert_array_equal(sp.truncated, sz.truncated)
+                assert sp.infos == sz.infos
+                assert ep.runtime.world is not None and ez.runtime.world is not None
+                for f in dataclasses.fields(ep.runtime.world):
+                    ap, az = getattr(ep.runtime.world, f.name), getattr(ez.runtime.world, f.name)
                     if ap.dtype.kind == 'f':
                         assert np.array_equal(ap, az, equal_nan=True), (prof_name, f.name)
                     else:
                         assert np.array_equal(ap, az), (prof_name, f.name)
-                if tp.all():
+                if ep.runtime.done().all():
                     break
         finally:
             ep.close()
@@ -685,17 +707,17 @@ def test_b02_corridor_rghf_nat_cbt_bitwise_rust_and_still_wins() -> None:
             assert env.accel == 'rust'
             out: list[tuple[bool, int, float]] = []
             for e in range(n_eps):
-                env.reset_count[0] = e
-                env.seed = e
+                env._reset_count[0] = e
+                env._seed = e
                 env.reset()
                 rng = np.random.default_rng([0, 2, e])
                 tot_r, steps, won = 0.0, 0, False
-                while not env.done[0]:
-                    r, term, infos = env.step(still_policy(env, rng))
-                    tot_r += float(r[0])
+                while not env.runtime.done()[0]:
+                    res = env.step(still_policy(env, rng))
+                    tot_r += float(res.reward[0])
                     steps += 1
-                    if term[0]:
-                        won = bool(infos[0].get('battle_won', False))
+                    if res.terminated[0] or res.truncated[0]:
+                        won = bool(res.infos[0].get('battle_won', False))
                 out.append((won, steps, tot_r))
             return out
         finally:
@@ -755,27 +777,32 @@ def test_b02_non_corridor_passive_from_map_zero_diff(preset: str, scenario: str)
         )
         try:
             assert e_on.accel == 'rust' and e_off.accel == 'rust'
-            obs1, st1 = e_on.reset()
-            obs0, st0 = e_off.reset()
-            np.testing.assert_array_equal(obs1, obs0)
-            np.testing.assert_array_equal(st1, st0)
+            e_on.reset()
+            e_off.reset()
+            np.testing.assert_array_equal(e_on.obs(), e_off.obs())
+            np.testing.assert_array_equal(e_on.state(), e_off.state())
             rng = np.random.default_rng(7)
             for _ in range(25):
-                av1, av0 = e_on.get_avail_actions(), e_off.get_avail_actions()
+                av1, av0 = e_on.avail_actions(), e_off.avail_actions()
                 np.testing.assert_array_equal(av1, av0)
                 acts = _random_actions(rng, av1)
-                r1, t1, i1 = e_on.step(acts)
-                r0, t0, i0 = e_off.step(acts)
-                np.testing.assert_array_equal(r1, r0)
-                np.testing.assert_array_equal(t1, t0)
-                assert i1 == i0
-                for f in dataclasses.fields(e_on.world):
-                    a1, a0 = getattr(e_on.world, f.name), getattr(e_off.world, f.name)
+                s1 = e_on.step(acts)
+                s0 = e_off.step(acts)
+                np.testing.assert_array_equal(s1.reward, s0.reward)
+                np.testing.assert_array_equal(s1.terminated, s0.terminated)
+                np.testing.assert_array_equal(s1.truncated, s0.truncated)
+                assert s1.infos == s0.infos
+                assert e_on.runtime.world is not None and e_off.runtime.world is not None
+                for f in dataclasses.fields(e_on.runtime.world):
+                    a1, a0 = (
+                        getattr(e_on.runtime.world, f.name),
+                        getattr(e_off.runtime.world, f.name),
+                    )
                     if a1.dtype.kind == 'f':
                         assert np.array_equal(a1, a0, equal_nan=True), (backend, f.name)
                     else:
                         assert np.array_equal(a1, a0), (backend, f.name)
-                if t1.all():
+                if e_on.runtime.done().all():
                     break
         finally:
             e_on.close()
@@ -832,30 +859,32 @@ def test_m13_env_full_episode_matches_pyref(
     )
     try:
         assert ep.accel == 'rust' and ez.accel == 'rust', (preset, scenario, tag)
-        op, sp = ep.reset()
-        oz, sz = ez.reset()
-        np.testing.assert_array_equal(op, oz)
-        np.testing.assert_array_equal(sp, sz)
+        ep.reset()
+        ez.reset()
+        np.testing.assert_array_equal(ep.obs(), ez.obs())
+        np.testing.assert_array_equal(ep.state(), ez.state())
         rng = np.random.default_rng(13)
-        while not ep.done.all():
-            avp, avz = ep.get_avail_actions(), ez.get_avail_actions()
+        while not ep.runtime.done().all():
+            avp, avz = ep.avail_actions(), ez.avail_actions()
             np.testing.assert_array_equal(avp, avz)
             acts = _random_actions(rng, avp)
-            rp, tp, ip = ep.step(acts)
-            rz, tz, iz = ez.step(acts)
-            np.testing.assert_array_equal(rp, rz)
-            np.testing.assert_array_equal(tp, tz)
-            assert ip == iz
-            np.testing.assert_array_equal(ep.get_obs(), ez.get_obs())
-            np.testing.assert_array_equal(ep.get_state(), ez.get_state())
-            for f in dataclasses.fields(ep.world):
-                ap, az = getattr(ep.world, f.name), getattr(ez.world, f.name)
+            sp = ep.step(acts)
+            sz = ez.step(acts)
+            np.testing.assert_array_equal(sp.reward, sz.reward)
+            np.testing.assert_array_equal(sp.terminated, sz.terminated)
+            np.testing.assert_array_equal(sp.truncated, sz.truncated)
+            assert sp.infos == sz.infos
+            np.testing.assert_array_equal(ep.obs(), ez.obs())
+            np.testing.assert_array_equal(ep.state(), ez.state())
+            assert ep.runtime.world is not None and ez.runtime.world is not None
+            for f in dataclasses.fields(ep.runtime.world):
+                ap, az = getattr(ep.runtime.world, f.name), getattr(ez.runtime.world, f.name)
                 if ap.dtype.kind == 'f':
                     assert np.array_equal(ap, az, equal_nan=True), (scenario, tag, f.name)
                 else:
                     assert np.array_equal(ap, az), (scenario, tag, f.name)
-        assert ez.done.all()
-        assert ep.get_stats()['battles_won'] == ez.get_stats()['battles_won']
+        assert ez.runtime.done().all()
+        assert ep.runtime.counters()['battles_won'] == ez.runtime.counters()['battles_won']
     finally:
         ep.close()
         ez.close()
@@ -888,27 +917,33 @@ def test_m13_accel_three_tiers_bitwise(
         for tier in ('python', 'services', 'rust')
     }
     try:
-        resets = {t: e.reset() for t, e in envs.items()}
+        for e in envs.values():
+            e.reset()
         for t in ('services', 'rust'):
-            np.testing.assert_array_equal(resets['python'][0], resets[t][0])
-            np.testing.assert_array_equal(resets['python'][1], resets[t][1])
-            np.testing.assert_array_equal(envs['python'].world.visible, envs[t].world.visible)
+            np.testing.assert_array_equal(envs['python'].obs(), envs[t].obs())
+            np.testing.assert_array_equal(envs['python'].state(), envs[t].state())
+            w0, wt = envs['python'].runtime.world, envs[t].runtime.world
+            assert w0 is not None and wt is not None
+            np.testing.assert_array_equal(w0.visible, wt.visible)
         rng = np.random.default_rng(19)
         for _ in range(40):
-            if envs['python'].done.all():
+            if envs['python'].runtime.done().all():
                 break
-            av0 = envs['python'].get_avail_actions()
+            av0 = envs['python'].avail_actions()
             for t in ('services', 'rust'):
-                np.testing.assert_array_equal(av0, envs[t].get_avail_actions())
+                np.testing.assert_array_equal(av0, envs[t].avail_actions())
             acts = _random_actions(rng, av0)
             out = {t: e.step(acts) for t, e in envs.items()}
             for t in ('services', 'rust'):
-                np.testing.assert_array_equal(out['python'][0], out[t][0])
-                np.testing.assert_array_equal(out['python'][1], out[t][1])
-                assert out['python'][2] == out[t][2]
-                np.testing.assert_array_equal(envs['python'].get_obs(), envs[t].get_obs())
-                np.testing.assert_array_equal(envs['python'].get_state(), envs[t].get_state())
-                np.testing.assert_array_equal(envs['python'].world.visible, envs[t].world.visible)
+                np.testing.assert_array_equal(out['python'].reward, out[t].reward)
+                np.testing.assert_array_equal(out['python'].terminated, out[t].terminated)
+                np.testing.assert_array_equal(out['python'].truncated, out[t].truncated)
+                assert out['python'].infos == out[t].infos
+                np.testing.assert_array_equal(envs['python'].obs(), envs[t].obs())
+                np.testing.assert_array_equal(envs['python'].state(), envs[t].state())
+                w0, wt = envs['python'].runtime.world, envs[t].runtime.world
+                assert w0 is not None and wt is not None
+                np.testing.assert_array_equal(w0.visible, wt.visible)
     finally:
         for e in envs.values():
             e.close()

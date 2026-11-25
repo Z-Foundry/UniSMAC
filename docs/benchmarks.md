@@ -1,6 +1,6 @@
 # Benchmarks, Presets & SC2 Setup
 
-[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Environment Interface](interface.md) · [Profiles & Configuration](profiles-and-config.md)
+[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Environment Interface](interface.md) · [Ecosystem Adapters](adapters.md) · [Profiles & Configuration](profiles-and-config.md)
 
 UniSMAC unifies **SMAC**, **SMACv2**, and **SMAC-Hard** under six named presets and a single 84-scenario registry. All three benchmarks can be constructed side-by-side in the same Python process without upstream PySC2 conflicts.
 

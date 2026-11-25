@@ -1,15 +1,15 @@
 # Environment Interface
 
-[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md)
+[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Ecosystem Adapters](adapters.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md) · [Migration Guide](../MIGRATION.md)
 
-This document specifies the public Python API and CLI surface of `unismac`, including vectorized rollouts (`VecEnv`), PyMARL/EPyMARL compatibility (`UnismacEnv`), two-sided self-play, per-episode seeding and opponent control, acceleration tiers (`accel`), and native SMAC opponent configuration.
+This document specifies the purified `v0.2.0` public Python API and CLI surface of `unismac`: `make_vec_env()`, `VecEnv`, `StepBatch`, `RuntimeView`, two-sided self-play, per-episode seeding and opponent control, acceleration tiers (`accel`), and native SMAC opponent configuration. For PyMARL, Gymnasium 1.0+, and PettingZoo wrappers, see [Ecosystem Adapters](adapters.md).
 
 ---
 
-## 1. Factory Entry Points
+## 1. Factory Entry Point
 
 ```python
-from unismac import STANDARD_PROFILE, list_profiles, make_env, make_vec_env
+from unismac import CONTRACT_VERSION, STANDARD_PROFILE, StepBatch, VecEnv, list_profiles, make_vec_env
 ```
 
 ```python
@@ -29,12 +29,11 @@ make_vec_env(
 ) -> VecEnv
 ```
 
-- **`make_vec_env(...)`** always returns a batched `VecEnv` (even when `batch_size=1`).
-- **`make_env(...)`** accepts the exact same arguments and returns a PyMARL/EPyMARL-compatible `UnismacEnv` when `batch_size == 1`, or a `VecEnv` when `batch_size > 1`.
+- **`make_vec_env(...)`** is the single core factory and always returns a batched `VecEnv` (even when `batch_size=1`). Single-environment RL framework interfaces are provided by monomorphic adapter factories (`make_pymarl_env`, `make_gym_env`, `make_gym_vec_env`, `make_pettingzoo_env` — see [Ecosystem Adapters](adapters.md)).
 - **`profile`**: Named profile from `unismac.profiles` (e.g. `'sc2-native'`, `'sc2-explore'`, `'sc2-symmetric'`, `'sc2-live'`, `'minimal'`). Applied underneath user `overrides` with key-by-key deep merging of `backend.pyref_options`.
 - **`dual`**: Shorthand for two-sided self-play (`opponent.kind='external'`). When `dual=True` and `profile` is omitted, automatically selects `profile='sc2-symmetric'`.
 - **`backend`**:
-  - `None` (default): stays `'sc2'` when both `profile is None` and `dual is False` (100% v0.1.0 backward-compatible); when `profile` or `dual=True` is supplied, resolves `'sc2'` for `sc2`-family profiles or `'zgame'` (if installed, else `'pyref'`) for `pyref`-family profiles.
+  - `None` (default): stays `'sc2'` when both `profile is None` and `dual is False`; when `profile` or `dual=True` is supplied, resolves `'sc2'` for `sc2`-family profiles or `'zgame'` (if installed, else `'pyref'`) for `pyref`-family profiles.
   - `'auto'`: selects `'sc2'` for non-portable presets (`smac`, `smacv2`, `smac-hard`), or `'zgame'` (if installed, else `'pyref'`) for `*-portable` presets.
   - Explicit `'zgame'`, `'pyref'`, `'sc2'` (`batch_size=1` only), or a pre-constructed `Backend` instance with matching `batch_size`. Conflicting combinations (such as `profile='sc2-live'` with `backend='zgame'`, or `dual=True` with an asymmetric profile) raise a descriptive `ValueError`.
 - **`zgame_threads`**: Rayon worker thread count for `backend='zgame'` (default `1`). Simulation results are bitwise identical regardless of thread count. Passing `zgame_threads` with any non-`zgame` backend raises `ValueError`.
@@ -42,53 +41,76 @@ make_vec_env(
 
 ---
 
-## 2. Public `VecEnv` API
+## 2. Purified `VecEnv`, `StepBatch`, and `RuntimeView`
+
+### `StepBatch`
+
+Returned by `VecEnv.step(...)`. A frozen, slotted dataclass (`@dataclass(frozen=True, slots=True)`) that does **not** implement `__iter__` (no tuple unpacking):
+
+| Field | Type / Shape | Description |
+| --- | --- | --- |
+| `reward` | `float64[B]` | Step reward for Player 1 (`0.0` for previously frozen slots). |
+| `terminated` | `bool[B]` | `True` only for active slots whose battle ended on this step (`WON` / `LOST` / `DRAW`); `False` for timeout slots and previously frozen slots. |
+| `truncated` | `bool[B]` | `True` only for active slots hitting `episode_limit` on this step (derived unconditionally from `timeouts` delta without requiring `termination.continuing_episode=True`); `False` for previously frozen slots. |
+| `infos` | `list[dict[str, Any]]` | Length-`B` per-slot dictionaries (`battle_won`, `dead_allies`, `dead_enemies`, plus `battle_lost`/`reward_enemy` in `dual=True` mode; `{}` for frozen slots). |
+| `reward_enemy` | `float64[B] \| None` | Player 2 step reward in two-sided (`dual=True`) mode; `None` in single-sided mode. |
+
+### `VecEnv` Public Surface
+
+`VecEnv` enforces strict orthogonality: public methods never call one another internally, and internal mutable buffers remain private.
 
 | Member | Signature / Type | Description |
 | --- | --- | --- |
-| `reset` | `reset(env_ids=None, *, opponents=None, seeds=None) -> tuple[ndarray, ndarray]` | Resets all environments (or the subset `env_ids`) and returns full-batch `(obs, state)`. Supports per-episode scripted opponents and per-episode seeds. |
-| `step` | `step(actions, enemy_actions=None) -> tuple[ndarray, ndarray, list[dict]]` | Advances active environments by `step_mul` loops. `actions` has shape `int64[B, A]`. Returns `(reward float64[B], terminated bool[B], infos list[dict])`. Finished slots remain frozen until reset. |
-| `get_obs` | `get_obs(side=1) -> float32[B, A, D]` | Returns local observations for Player 1 (`side=1`) or Player 2 (`side=2`, two-sided mode only). |
-| `get_state` | `get_state(side=1) -> float32[B, S]` | Returns global state for `side=1` or `side=2`. |
-| `get_avail_actions` | `get_avail_actions(side=1) -> int64[B, A, K]` | Binary action mask (`1` = valid, `0` = invalid) for `side=1` or `side=2`. |
-| `alive` | `alive(side=1) -> bool[B, A]` | Fresh boolean array indicating living agents (`frame_for(side).allies.health > 0`). |
-| `game_loop` | `game_loop() -> int64[B]` | Fresh array of current backend simulation loops (`world.game_loop`). |
-| `obs_layout` / `obs_layout_for(side)` | `ObsLayout` | Structured feature metadata: `move`, `enemy`, `ally`, `own`, `timestep` (tuples of feature names), `n_enemies`, `n_allies`, `size`. |
+| `reset` | `reset(env_ids=None, *, opponents=None, seeds=None) -> None` | Resets all environments (or the subset `env_ids`) in place and returns `None`. Supports partial reset on the very first call, per-episode scripted opponents, per-episode seeds, and per-slot idempotent spotter gating. |
+| `step` | `step(actions, enemy_actions=None) -> StepBatch` | Advances active environments by `step_mul` loops (`actions: int64[B, A]`). Finished slots remain frozen until reset. |
+| `obs` | `obs(side=1) -> float32[B, A, D]` | Local observations for Player 1 (`side=1`) or Player 2 (`side=2`, two-sided mode). |
+| `state` | `state(side=1) -> float32[B, S]` | Global state for `side=1` or `side=2`. |
+| `avail_actions` | `avail_actions(side=1) -> int64[B, A, K]` | Binary action mask (`1` = valid, `0` = invalid) for `side=1` or `side=2`. |
+| `alive` | `alive(side=1) -> bool[B, A]` | Fresh boolean array indicating living agents (`health > 0`). |
+| `capabilities` | `capabilities() -> float32[B, A * C]` | Per-episode SMACv2 capability vector (empty when no procedural capabilities are enabled). |
+| `obs_dim` / `state_dim` | `int` | Exact feature vector widths (`obs_layout.size` and `state_layout.size`). |
+| `obs_layout` / `obs_layout_for(side)` | `ObsLayout` | Structured feature metadata: `move`, `enemy`, `ally`, `own`, `timestep`, `n_enemies`, `n_allies`, `size`, `reported_size`. |
 | `state_layout` / `state_layout_for(side)` | `StateLayout` | Structured global-state metadata including `.size`. |
 | `n_agents` / `n_actions` / `n_enemies` | `int` | Agent count, action space size, and enemy count for Player 1. |
 | `n_agents_for(side)` / `n_actions_for(side)` | `int` | Agent and action counts for `side=1` or `side=2` (may differ on asymmetric maps such as `5m_vs_6m`). |
-| `episode_limit` | `int` | Maximum steps per episode before timeout. |
+| `batch_size` / `episode_limit` | `int` | Batch size `B` and maximum steps per episode before timeout truncation. |
+| `config` / `spec` / `catalog` / `attack_prob` | Read-only properties | Resolved `EnvConfig`, `ScenarioSpec`, `UnitCatalog`, and per-slot attack probability array (if enabled). |
 | `accel` | `'python' \| 'services' \| 'rust'` | Effective environment-layer acceleration tier. |
 | `dual` / `mirror` | `bool` / `'x' \| 'y' \| None` | Whether two-sided mode is active, and the active mirror-spawn axis (if any). |
-| `opponent_names()` | `list[str \| None]` | Active scripted opponent name per batch slot (`None` for non-scripted modes). |
-| `opponent_errors()` | `int64[B]` | Cumulative step count of caught opponent-script exceptions per slot. |
-| `env_seeds` | `tuple[int \| None, ...]` | Active per-environment seeds (for environments using per-episode seeding). |
-| `rng_stream(name, env_id, frame=0)` | `np.random.Generator` | Deterministic counter-based RNG stream for an environment slot. |
-| `frame` / `frame_for(side)` / `world` | Read-only views | Current `Frame` (ordered ally/enemy arrays) and raw `WorldState` snapshot. |
-| `get_env_info()` / `get_stats()` | `dict[str, Any]` | Standard environment metadata and cumulative win/game/timeout counters. |
+| `runtime` | `RuntimeView` | Read-only diagnostic and low-level runtime handle (see below). |
+| `close()` / `with env:` | `None` / context manager | Releases backend resources permanently; supports `__enter__`/`__exit__` and informative `__repr__`. |
+
+### `RuntimeView` (`env.runtime`)
+
+Low-level simulation inspection, counters, and lifecycle controls live under `env.runtime`:
+
+| Member | Signature / Type | Description |
+| --- | --- | --- |
+| `world` / `backend` | `WorldState \| None` / `Backend` | Current batched `WorldState` snapshot and underlying backend instance. |
+| `healers` / `env_seeds` | `bool[...]` / `tuple[int \| None, ...]` | Healer unit mask (Medivacs) and active per-environment seeds. |
+| `frame(side=1)` | `Frame` | Ordered ally/enemy `Frame` snapshot from `side`'s perspective. |
+| `game_loop()` | `int64[B]` | Fresh array of current backend simulation loops (`world.game_loop`). |
+| `done()` | `bool[B]` | Fresh boolean snapshot of slots currently in the terminal frozen state. |
+| `episode_steps()` / `episode_count()` / `reset_count()` | `int64[B]` | Fresh snapshots of per-slot step, completed-episode, and reset counters. |
+| `max_rewards()` | `float64[B]` | Fresh snapshot of per-slot reward scaling denominators. |
+| `counters()` | `dict[str, int]` | Aggregate counters: `{'battles_won': int, 'battles_game': int, 'timeouts': int, 'episodes': int}`. |
+| `opponent_names()` / `opponent_errors()` | Per-slot metadata | Active scripted opponent name per slot and caught script-error diagnostics. |
+| `last_scenarios()` | Per-slot `Scenario` info | Most recently generated/loaded scenario records per batch slot. |
+| `rng_stream(name, env_id=0, ...)` | `np.random.Generator` | Deterministic counter-based RNG stream for an environment slot. |
 | `close_backend()` | `None` | Shuts down the underlying backend while preserving `VecEnv` config, episode counters, and seeds; the next full-batch `reset()` relaunches the backend. |
-| `close()` / `with env:` | `None` / context manager | Releases backend resources permanently; both `VecEnv` and `UnismacEnv` support `__enter__`/`__exit__` and informative `__repr__`. |
 
-### `UnismacEnv` (PyMARL / EPyMARL Single-Env Wrapper)
+### Ecosystem Adapters (`unismac.adapters`)
 
-Returned by `make_env(..., batch_size=1)` (implemented in `unismac.env.single`, re-exported from `unismac` and `unismac.env.core`). Mirrors the upstream `StarCraft2Env` (`MultiAgentEnv`) API and supports `with make_env(...) as env:` and concise `__repr__`:
-
-- `reset() -> tuple[list[np.ndarray], np.ndarray]` (per-agent `float32[D]` list and `float32[S]` state)
-- `step(actions, enemy_actions=None) -> tuple[float, bool, dict[str, Any]]`
-- `get_obs(side=1)`, `get_obs_agent(agent_id)`, `get_obs_size()`
-- `get_state(side=1)`, `get_state_size()`
-- `get_avail_actions(side=1)`, `get_avail_agent_actions(agent_id)`, `get_total_actions()`
-- `get_env_info()`, `get_stats()`, `get_capabilities()`, `get_cap_size()`, `seed()`, `close()`
-- Read-only `VecEnv` pass-throughs: `accel`, `dual`, `mirror`, `obs_layout`, `state_layout`, `n_agents_for(side)`, `n_actions_for(side)`, `alive(side=1)`
-- `env.vec` exposes the underlying `batch_size=1` `VecEnv`.
+Framework-specific interfaces (`PyMARLEnv` / `make_pymarl_env`, Gymnasium 1.0+ `GymnasiumEnv` / `GymnasiumVecEnv`, and PettingZoo `PettingZooParallelEnv`) live in `unismac.adapters` and wrap `VecEnv` cleanly without adding dependencies to the core kernel. See [Ecosystem Adapters](adapters.md).
 
 ### Additional Public Exports
 
-- `unismac`: `STANDARD_PROFILE` (`"sc2-native"`), `list_profiles`, `CONTRACT_VERSION` (`"0.2"`), `make_env`, `make_vec_env`, `VecEnv`, `UnismacEnv`.
+- `unismac`: `CONTRACT_VERSION` (`"0.2"`), `STANDARD_PROFILE` (`"sc2-native"`), `StepBatch`, `VecEnv`, `list_profiles`, `make_vec_env`.
+- `unismac.env`: `EnvConfig`, `MULTI_LEVEL_SMAC_MAPS`, `NativeSMACOpponent`, `RuntimeView`, `SMAC_TRIGGER_SPECS`, `StepBatch`, `VecEnv`, `apply_overrides`, `make_vec_env`, `native_smac_overrides`.
+- `unismac.adapters`: `PyMARLEnv`, `UnismacEnv` (`= PyMARLEnv`), `make_pymarl_env` (optional extras in `unismac.adapters.gymnasium` and `unismac.adapters.pettingzoo`).
 - `unismac.contract.CapabilityError`: Raised when a backend cannot satisfy a requested capability or option.
 - `unismac.profiles`: `PROFILES`, `PUBLIC_PROFILES`, `LEGACY_PROFILES`, `Profile`, `STANDARD_PROFILE`, `STANDARD_EXPLORE_PROFILE`, `STANDARD_SYMMETRIC_PROFILE`, `STANDARD_PROFILES`, `profile_overrides`, `merge_overrides`, `list_profiles`, `parse_pyref_options`, `pyref_extra_overrides`, `backend_label`.
 - `unismac.backends.pyref.options_meta`: `describe_pyref_options(group=None, zgame_only=False)` for browsing grouped `PyrefConfig` metadata.
-- `unismac.env`: `EnvConfig`, `build_config`, `resolve_config`, `apply_overrides`, `NativeSMACOpponent`, `SMAC_TRIGGER_SPECS`, `MULTI_LEVEL_SMAC_MAPS`, `native_smac_overrides`.
 - `unismac.env.opponents.scripted.script_pool(opponent_config, scenario)` (also re-exported from `unismac.env.opponents`): Returns the valid scripted-opponent pool for a SMAC-Hard scenario.
 
 ---
@@ -102,7 +124,12 @@ from unismac import make_vec_env
 
 with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as env:
     env.reset()
-    obs_p1, obs_p2 = env.get_obs(side=1), env.get_obs(side=2)
+    obs_p1, obs_p2 = env.obs(side=1), env.obs(side=2)
+    batch = env.step(
+        env.avail_actions(side=1).argmax(axis=-1),
+        enemy_actions=env.avail_actions(side=2).argmax(axis=-1),
+    )
+    r_p1, r_p2 = batch.reward, batch.reward_enemy
 ```
 
 (Equivalently, pass `profile="sc2-symmetric"` with `overrides={"opponent.kind": "external"}`.)
@@ -110,13 +137,14 @@ with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as 
 Key semantics:
 
 - **Stepping**: `step(actions, enemy_actions=...)` requires `enemy_actions` of shape `int64[B, n_agents_for(2)]` in two-sided mode (and rejects it in single-sided mode). Invalid Player 2 actions raise errors prefixed with `enemy_actions:`.
-- **Player 2 perspective**: `get_obs(side=2)`, `get_state(side=2)`, `get_avail_actions(side=2)`, `alive(side=2)`, and `frame_for(side=2)` apply identical rules from Player 2's point of view (allies = Player 2, enemies = Player 1, independent death tracking, `last_action`, `max_rewards`, and `obs_shuffle_p2` RNG stream).
-- **Infos & termination**: Active episode `infos[b]` include `reward_enemy` (Player 2's scalar reward) and `battle_lost` (Player 1 defeat), alongside `battle_won` (Player 1 victory). Simultaneous elimination counts as a draw (`battle_won=False`, `battle_lost=False`).
+- **Player 2 perspective**: `obs(side=2)`, `state(side=2)`, `avail_actions(side=2)`, `alive(side=2)`, and `runtime.frame(side=2)` apply identical rules from Player 2's point of view (allies = Player 2, enemies = Player 1, independent death tracking, `last_action`, `max_rewards`, and `obs_shuffle_p2` RNG stream).
+- **Rewards, infos & termination**: `batch.reward_enemy` returns Player 2's `float64[B]` reward directly alongside `batch.reward`. Active episode `batch.infos[b]` also include `reward_enemy` and `battle_lost` (Player 1 defeat) alongside `battle_won` (Player 1 victory). Simultaneous elimination counts as a draw (`battle_won=False`, `battle_lost=False`).
 - **Symmetry enforcement**: Asymmetric backend options (`auto_acquire_owners`, `retreat_owners`, `hit_slow_owner1_only`, etc.) are rejected at construction time. Use `sc2-symmetric` (`STANDARD_SYMMETRIC_PROFILE`), which sets `auto_acquire_owners=()`, `retreat_owners=(1, 2)`, `hit_slow_owner1_only=False`, and `passive_from_map=False`.
 - **Mirror spawning**: With `backend.spawn_mirror='auto'` (default) on explicit non-procedural maps that are geometrically mirrorable, Player 2 spawns as the exact mirror of Player 1 (position and facing), exposed via `env.mirror` (`'x'`, `'y'`, or `None`). Pass `'backend.spawn_mirror': 'off'` to use the raw spawn table instead.
   - Mirrorable maps: SMAC `3m`, `8m`, `25m`, `2s3z`, `3s5z`, `MMM`, `1c3s5z` (`'x'`) and `bane_vs_bane` (`'y'`); SMAC-Hard `3m`, `8m`, `25m`, `2s3z`, `3s5z`, `MMM`, `1c3s5z` (`'x'`).
 - **Unsupported combinations** (rejected at construction): `backend='sc2'` (`CapabilityError`), `units.enemy_source='visible'`, conic FOV, `capability.attack` / `enemy_mask`, and the `actions.ability` segment.
 - **Acceleration**: Two-sided mode with `sc2-symmetric` qualifies as a classic recipe and automatically runs on `accel='rust'` across all **75 / 76** runnable portable scenarios (see [Benchmarks & Presets](benchmarks.md#2-portable-scenario-coverage-76--84-runnable) for the `smac-portable/MMM2` note).
+- **PettingZoo self-play**: For agent-dictionary self-play (including heterogeneous spaces on asymmetric maps such as `5m_vs_6m`), see `make_pettingzoo_env(..., dual=True)` in [Ecosystem Adapters](adapters.md#5-pettingzoo-adapter-unismacadapterspettingzoo).
 
 ---
 
@@ -187,17 +215,18 @@ python -m unismac.env.accel.manifest --write --jobs 6      # Re-verify parity te
 For users who want to evaluate or train against the exact map-trigger opening behavior of the original 23 SMAC maps without running live StarCraft II, `unismac.env` exports `NativeSMACOpponent`, `SMAC_TRIGGER_SPECS`, `MULTI_LEVEL_SMAC_MAPS`, and `native_smac_overrides(...)`:
 
 ```python
-from unismac import make_env
+from unismac import make_vec_env
 from unismac.env import native_smac_overrides
 
-with make_env(
+with make_vec_env(
     "smac-portable",
     "2c_vs_64zg",
     profile="sc2-native",
     seed=0,
     overrides=native_smac_overrides("2c_vs_64zg", terrain_elevation="auto"),
 ) as env:
-    obs, state = env.reset()
+    env.reset()
+    obs, state = env.obs(), env.state()
 ```
 
 `native_smac_overrides(...)` parameters:
@@ -250,5 +279,5 @@ unismac bench [--preset smac-portable] [--scenario 8m] [--backend zgame] [--batc
 
 ## 10. Versioning Policy
 
-- **`unismac.__version__`** (current release **`0.1.1`**, backward-compatible DX and architecture release over **`0.1.0`**) tracks the environment interface under Semantic Versioning. During `0.x`, breaking API changes or default-trajectory changes bump the minor version (`0.y.0`), while bug fixes and backward-compatible ergonomic/internal improvements preserving trajectories bump the patch version (`0.y.z`).
-- **`unismac.CONTRACT_VERSION`** (**`"0.2"`**) tracks the backend contract (`Backend`, `WorldState`, `Command`, `Scenario`, `Capabilities`) independently of environment-layer releases.
+- **`unismac.__version__`** (current release **`0.2.0`** — purified `VecEnv` kernel + multi-ecosystem RL adapters; see [Migration Guide](../MIGRATION.md)) tracks the environment interface under Semantic Versioning. During `0.x`, breaking API changes or default-trajectory changes bump the minor version (`0.y.0`), while bug fixes and backward-compatible ergonomic/internal improvements preserving trajectories bump the patch version (`0.y.z`).
+- **`unismac.CONTRACT_VERSION`** (**`"0.2"`**) tracks the backend contract (`Backend`, `WorldState`, `Command`, `Scenario`, `Capabilities`) independently of environment-layer releases. `zfoundry-zgame` remains at **`0.1.1`** with zero Rust or trajectory changes across `unismac v0.2.0`.

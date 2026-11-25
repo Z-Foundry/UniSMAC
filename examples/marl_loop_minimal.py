@@ -1,12 +1,12 @@
 """Minimal zero-dependency MARL rollout and evaluation loop for UniSMAC.
 
-Demonstrates idiomatic integration patterns used by PyMARL, CleanRL, and TorchRL
-trainers without requiring PyTorch or any third-party RL dependency:
+Demonstrates idiomatic integration directly against the purified `VecEnv`
+kernel without requiring PyTorch, Gymnasium, or PettingZoo:
 
 1. Context-managed creation via `with make_vec_env(..., profile=...) as env:`;
 2. Vectorized masked action sampling (safe against zero-probability ties);
-3. Distinguishing true termination from timeout truncation via
-   `termination.continuing_episode=True` (needed for value bootstrapping);
+3. Native `StepBatch.terminated` vs `StepBatch.truncated` separation for value
+   bootstrapping (no `continuing_episode` override required);
 4. Partial reset (`env.reset(done_ids)`) so finished slots do not stay frozen;
 5. Deterministic, batch-position-invariant evaluation via per-environment `seeds`.
 
@@ -38,7 +38,7 @@ def sample_masked_actions(avail: np.ndarray, rng: np.random.Generator) -> np.nda
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description='Minimal PyMARL/CleanRL-style rollout and deterministic eval loop.'
+        description='Minimal vectorized MARL rollout and deterministic eval loop.'
     )
     parser.add_argument('--preset', default='smac-portable', help='Preset name.')
     parser.add_argument('--scenario', default='8m', help='Scenario name.')
@@ -62,8 +62,6 @@ def parse_args() -> argparse.Namespace:
 
 def collect_rollout(args: argparse.Namespace) -> None:
     """Collect a vectorized training rollout with truncation-aware bootstrap masks."""
-    # `termination.continuing_episode=True` is allowed by `accel='rust'` and adds
-    # `episode_limit=True` to `infos[b]` whenever slot `b` ends due to timeout.
     with make_vec_env(
         args.preset,
         args.scenario,
@@ -71,10 +69,11 @@ def collect_rollout(args: argparse.Namespace) -> None:
         profile=args.profile,
         batch_size=args.batch_size,
         seed=args.seed,
-        overrides={'termination.continuing_episode': True},
     ) as env:
         print(f'Train env       : {env!r}')
-        obs, state = env.reset()
+        env.reset()
+        obs = env.obs()
+        state = env.state()
         rng = np.random.default_rng(args.seed)
 
         # Pre-allocate rollout storage (CleanRL / PPO style).
@@ -88,27 +87,25 @@ def collect_rollout(args: argparse.Namespace) -> None:
         timeouts = 0
 
         for t in range(args.steps):
-            avail = env.get_avail_actions()
+            avail = env.avail_actions()
             actions = sample_masked_actions(avail, rng)
-            rewards, terminated, infos = env.step(actions)
+            batch = env.step(actions)
 
-            truncated = np.array(
-                [bool(info.get('episode_limit', False)) for info in infos], dtype=bool
-            )
-            # True terminal states (not timeout truncations) zero out bootstrap targets.
-            true_done = terminated & ~truncated
-            rewards_buf[t] = rewards
-            bootstrap_buf[t] = (~true_done).astype(np.float32)
+            # True battle terminations zero out bootstrap targets; timeout truncations keep them.
+            rewards_buf[t] = batch.reward
+            bootstrap_buf[t] = (~batch.terminated).astype(np.float32)
 
-            if terminated.any():
-                done_ids = np.flatnonzero(terminated).tolist()
+            done = batch.terminated | batch.truncated
+            if done.any():
+                done_ids = np.flatnonzero(done).tolist()
                 completed += len(done_ids)
-                wins += sum(1 for i in done_ids if infos[i].get('battle_won'))
-                timeouts += int(truncated[done_ids].sum())
+                wins += sum(1 for i in done_ids if batch.infos[i].get('battle_won'))
+                timeouts += int(batch.truncated[done_ids].sum())
                 # Reset finished slots immediately so they do not stay frozen on step t + 1.
-                obs, state = env.reset(done_ids)
-            else:
-                obs, state = env.get_obs(), env.get_state()
+                env.reset(done_ids)
+
+            obs = env.obs()
+            state = env.state()
 
         print(
             f'Collected       : T={args.steps}, B={b}, A={a}, obs_dim={d}, state_dim={s_dim}, '
@@ -139,14 +136,14 @@ def evaluate_deterministic(args: argparse.Namespace) -> None:
         ep_won = np.zeros(args.eval_envs, dtype=bool)
 
         while not finished.all():
-            actions = sample_masked_actions(env.get_avail_actions(), rng)
-            rewards, terminated, infos = env.step(actions)
+            actions = sample_masked_actions(env.avail_actions(), rng)
+            batch = env.step(actions)
             active = ~finished
-            ep_returns[active] += rewards[active]
-            newly_done = active & terminated
+            ep_returns[active] += batch.reward[active]
+            newly_done = batch.terminated | batch.truncated
             for i in np.flatnonzero(newly_done).tolist():
-                ep_won[i] = bool(infos[i].get('battle_won'))
-            finished |= terminated
+                ep_won[i] = bool(batch.infos[i].get('battle_won'))
+            finished |= newly_done
 
         print(
             f'Eval ({args.eval_envs} seeds)  : win_rate={float(ep_won.mean()):.3f}, '

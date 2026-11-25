@@ -430,7 +430,7 @@ def encode_state(ctx: FeatureContext, layout: StateLayout, obs: np.ndarray | Non
         enemy = np.concatenate([enemy, _one_hot(et.type_id, bits)], axis=-1)
     enemy = np.where(e_alive[..., None], enemy, 0.0)
 
-    parts = [ally.reshape(b_size, -1), enemy.reshape(b_size, -1)]
+    parts: list[np.ndarray] = [ally.reshape(b_size, -1), enemy.reshape(b_size, -1)]
     if layout.last_action:
         parts.append(ctx.last_action.reshape(b_size, -1))
     if layout.timestep:

@@ -26,9 +26,10 @@ from typing import TYPE_CHECKING, Any, Literal
 import numpy as np
 
 from ..contract import CapabilityError, Command, MapInfo, Spawn, UnitOverride, WorldState
+from .semantics import rng as rng_mod
 from .semantics.actions import ActionSpace
 from .semantics.catalog import AllyTables, EnemyTables, UnitCatalog
-from .semantics.features import FeatureContext, ObsLayout, StateLayout
+from .semantics.features import FeatureContext, ObsLayout, StateLayout, enemy_raw_visible
 from .semantics.reward import BattleReward
 from .semantics.spotter import Spotter
 from .semantics.units import Frame, UnitView
@@ -283,6 +284,7 @@ class Seat:
             if vis.spotter_gate
             else None
         )
+        self._spotter_stamp = np.full((b, 2), -1, np.int64)
         self.last_action = np.zeros((b, self.n_agents, self.n_actions))
         self._frame: Frame | None = None
         self._next: Frame | None = None  # Post-step unit view during step()
@@ -291,16 +293,18 @@ class Seat:
         self._cache: dict[str, Any] = {}
 
     # ------------------------------------------------------------ Per-episode state
-    def forget(self, b: int) -> None:
-        """Reset `max_reward` and per-env catalog for env `b` when its per-env seed changes."""
+    def _forget(self, b: int) -> None:
+        """Reset `max_reward`, spotter watermark, and per-env catalog for env `b` when its
+        per-env seed changes."""
         self.max_rewards[b] = np.nan
+        self._spotter_stamp[b] = -1
         self._row_catalogs.pop(b, None)
 
-    def reset(self, world: WorldState, ids: list[int], episodes: dict[int, int]) -> None:
+    def _reset(self, world: WorldState, ids: list[int], episodes: dict[int, int]) -> None:
         """Mirror Player 1's reset bookkeeping for Player 2: catalog fit, slot assignment, frame
         and tables, `max_reward`, spotter, death tracking, and `last_action`."""
         env, k = self.env, self.env._k
-        if self.catalog.min_code is None:
+        if ids and self.catalog.min_code is None:
             rows = world.alive[ids[0]] & (world.owner[ids[0]] == 2)
             self.catalog = seat_catalog(self.catalog, world.unit_type[ids[0], rows])
         if self._catalog0.min_code is None:
@@ -314,29 +318,60 @@ class Seat:
         frame = k.frame(self.view, world)
         self._ally_tables = self._ally_tables_for(frame)
         en = frame.enemies
-        self._enemy_tables = k.enemy_tables(self.catalog, en.unit_type, en.variant, en.shield_max)
+        self._enemy_tables = self._enemy_tables_for(frame)
         k.fill_max_rewards(
             self.max_rewards, ids, self.n_enemies, env.config.reward, en.health_max, en.shield_max
         )
         if self.spotter is not None:
             self.spotter.reset(ids)
+            self._spotter_stamp[ids] = -1
         self.rewarder.reset(ids)
         self.last_action[ids] = 0.0
         self._frame = frame
         self._cache = {}
+        if self.spotter is not None:
+            self._cache['gate'] = self._ensure_spotter()
 
     def _ally_tables_for(self, frame: Frame) -> AllyTables:
         a = frame.allies
+        unit_type, variant, shield_max = a.unit_type, a.variant, a.shield_max
+        rc = self.env._reset_count
+        if not rc.all():
+            ready = rc > 0
+            if ready.any():
+                src = int(np.flatnonzero(ready)[0])
+                unit_type = unit_type.copy()
+                variant = variant.copy()
+                shield_max = shield_max.copy()
+                unit_type[~ready] = unit_type[src]
+                variant[~ready] = variant[src]
+                shield_max[~ready] = shield_max[src]
         catalogs = [self._row_catalogs.get(b, self.catalog) for b in range(self.env.batch_size)]
-        return self.env._k.ally_tables(catalogs, a.unit_type, a.variant, a.shield_max)
+        return self.env._k.ally_tables(catalogs, unit_type, variant, shield_max)
 
-    def require(self) -> tuple[Frame, AllyTables, EnemyTables]:
+    def _enemy_tables_for(self, frame: Frame) -> EnemyTables:
+        en = frame.enemies
+        unit_type, variant, shield_max = en.unit_type, en.variant, en.shield_max
+        rc = self.env._reset_count
+        if not rc.all():
+            ready = rc > 0
+            if ready.any():
+                src = int(np.flatnonzero(ready)[0])
+                unit_type = unit_type.copy()
+                variant = variant.copy()
+                shield_max = shield_max.copy()
+                unit_type[~ready] = unit_type[src]
+                variant[~ready] = variant[src]
+                shield_max[~ready] = shield_max[src]
+        return self.env._k.enemy_tables(self.catalog, unit_type, variant, shield_max)
+
+    def _require(self) -> tuple[Frame, AllyTables, EnemyTables]:
         if self._frame is None or self._ally_tables is None or self._enemy_tables is None:
             raise RuntimeError('Must call reset() first')
         return self._frame, self._ally_tables, self._enemy_tables
 
     # ------------------------------------------------------------ Player 2 step lifecycle
-    def parse(self, enemy_actions: Any) -> np.ndarray:
+    def _parse(self, enemy_actions: Any) -> np.ndarray:
         """Convert `enemy_actions` to `int64[B, A2]`; required in two-sided mode."""
         if enemy_actions is None:
             raise ValueError(
@@ -351,16 +386,16 @@ class Seat:
             )
         return acts.reshape(want)
 
-    def issue(self, acts: np.ndarray, active: np.ndarray, n_slots: int, cmd: Command) -> None:
+    def _issue(self, acts: np.ndarray, active: np.ndarray, n_slots: int, cmd: Command) -> None:
         """Translate Player 2 actions into Player 1's `Command` (`to_command(out=cmd)`), prefixing
         validation errors with `enemy_actions: `, and record `last_action`."""
-        frame, a_tab, _ = self.require()
+        frame, a_tab, _ = self._require()
         try:
             self.env._k.to_command(
                 self.actions,
                 acts,
                 active,
-                self.get_avail_actions(),
+                self._avail(),
                 frame,
                 a_tab,
                 n_slots,
@@ -370,100 +405,139 @@ class Seat:
             raise ValueError(f'enemy_actions: {exc}') from None
         self.last_action[active] = np.eye(self.n_actions)[acts[active]]
 
-    def game_end(self, world: WorldState, cur: Frame, ally: AllyTables) -> np.ndarray:
+    def _game_end(self, world: WorldState, cur: Frame, ally: AllyTables) -> np.ndarray:
         """Build Player 2's post-step frame and evaluate two-sided termination with Player 1's."""
         k = self.env._k
         self._next = k.frame(self.view, world)
-        _, a_tab, _ = self.require()
+        _, a_tab, _ = self._require()
         return k.game_end_dual(
             cur, ally, self._next, a_tab, medivac_rules=self.env.catalog.heal_possible
         )
 
-    def settle(self, active: np.ndarray, end: np.ndarray, infos: list[dict[str, Any]]) -> None:
+    def _settle(
+        self, active: np.ndarray, end: np.ndarray, infos: list[dict[str, Any]]
+    ) -> np.ndarray:
         """Update Player 2 spotter, rewards, and settlement after Player 1 settles (adding
-        `battle_lost` and `reward_enemy` to `infos`)."""
+        `battle_lost` and `reward_enemy` to `infos`) and return `float64[B]` Player 2 rewards."""
         k = self.env._k
-        prev, cur = self.require()[0], self._next
+        prev, cur = self._require()[0], self._next
         assert cur is not None
         if self.spotter is not None:
             dead = (cur.allies.health == 0, cur.enemies.health == 0)
             k.spotter_after_step(self.spotter, *dead, np.flatnonzero(active))
         reward = k.reward(self.rewarder, prev, cur, active)
-        k.settle_enemy(active, end, reward, self.max_rewards, self.env.config.reward, infos)
+        p2_reward = k.settle_enemy(
+            active, end, reward, self.max_rewards, self.env.config.reward, infos
+        )
         self._frame, self._next = cur, None
         self._cache = {}
+        return p2_reward
 
     # ------------------------------------------------------------ Observations
-    def get_avail_actions(self) -> np.ndarray:
+    def _avail(self) -> np.ndarray:
         if 'avail' not in self._cache:
-            frame, a_tab, _ = self.require()
+            frame, a_tab, _ = self._require()
             env = self.env
             self._cache['avail'] = env._k.avail(
                 self.actions,
                 frame,
                 a_tab,
-                env.terrain,
+                env._terrain,
                 None,
                 ability_choice=None,
-                map_size=env.map_size,
+                map_size=env._map_size,
             )
         return self._cache['avail']
 
-    def context(self) -> FeatureContext:
-        frame, a_tab, e_tab = self.require()
+    def _context(self) -> FeatureContext:
+        frame, a_tab, e_tab = self._require()
         env = self.env
+        avail = self._avail()
         if env.config.actions.mask_by_range:
-            true_avail = self.get_avail_actions()
+            true_avail = avail
         else:
             if 'true_avail' not in self._cache:
                 self._cache['true_avail'] = env._k.avail(
                     self.actions,
                     frame,
                     a_tab,
-                    env.terrain,
+                    env._terrain,
                     None,
                     mask_by_range=True,
                     ability_choice=None,
-                    map_size=env.map_size,
+                    map_size=env._map_size,
                 )
             true_avail = self._cache['true_avail']
         return FeatureContext(
             config=env.config,
             catalog=self.catalog,
-            terrain=env.terrain,
+            terrain=env._terrain,
             frame=frame,
             ally_tables=a_tab,
             enemy_tables=e_tab,
-            avail=self.get_avail_actions(),
+            avail=avail,
             last_action=self.last_action,
-            episode_steps=env.episode_steps,
+            episode_steps=env._episode_steps,
             episode_limit=env.episode_limit,
             true_target=true_avail[..., self.actions.n_no_attack :],
             ops=env._k.services,
         )
 
     def _obs_rng(self, b: int) -> np.random.Generator:
-        return self.env.rng_stream(OBS_STREAM, b, int(self.env.episode_steps[b]))
+        return self.env._rng_stream(OBS_STREAM, b, int(self.env._episode_steps[b]))
 
-    def get_obs(self) -> np.ndarray:
+    def _ensure_spotter(self, ctx: FeatureContext | None = None) -> np.ndarray:
+        assert self.spotter is not None
+        env = self.env
+        want = np.column_stack((env._reset_count, env._episode_steps))
+        ready = env._reset_count > 0
+        already = ready & np.all(self._spotter_stamp == want, axis=1)
+        if already.all():
+            return self.spotter.gate.copy()
+        ctx = self._context() if ctx is None else ctx
+        if ready.all():
+            saved = self.spotter.gate[already].copy() if already.any() else None
+            gate = env._k.observe_spotter(
+                ctx,
+                self.spotter,
+                env._rng_streams(OBS_STREAM, env._episode_steps),
+                env.config.quirks.obs_shuffle,
+            )
+            if saved is not None:
+                self.spotter.gate[already] = saved
+                gate[already] = saved
+            self._spotter_stamp[:] = want
+            return gate
+        dirty = np.flatnonzero(ready & ~already)
+        if dirty.size:
+            raw = enemy_raw_visible(ctx)
+            alive = ctx.frame.allies.health > 0
+            shuffle = env.config.quirks.obs_shuffle
+            for b in dirty:
+                b_int = int(b)
+                gen = self._obs_rng(b_int)
+                order = list(range(raw.shape[1]))
+                if shuffle:
+                    rng_mod.shuffle(gen, order)
+                self.spotter.observe(b_int, order, raw[b_int], alive[b_int], gen)
+            self._spotter_stamp[dirty] = want[dirty]
+        return self.spotter.gate.copy()
+
+    def _obs(self) -> np.ndarray:
         if 'obs' not in self._cache:
             env = self.env
-            ctx = self.context()
+            ctx = self._context()
             if self.spotter is not None:
-                streams = (
-                    env.rng_streams(OBS_STREAM, env.episode_steps)
-                    if env.reset_count.all()
-                    else self._obs_rng
-                )
-                gate = env._k.observe_spotter(
-                    ctx, self.spotter, streams, env.config.quirks.obs_shuffle
-                )
+                gate = self._cache.get('gate')
+                if gate is None:
+                    gate = self._ensure_spotter(ctx)
+                    self._cache['gate'] = gate
                 ctx = replace(ctx, gate=gate)
             self._cache['obs'] = env._k.encode_obs(ctx, self.obs_layout)
         return self._cache['obs']
 
-    def get_state(self) -> np.ndarray:
+    def _state(self) -> np.ndarray:
         if 'state' not in self._cache:
-            obs = self.get_obs() if self.state_layout.obs_instead is not None else None
-            self._cache['state'] = self.env._k.encode_state(self.context(), self.state_layout, obs)
+            obs = self._obs() if self.state_layout.obs_instead is not None else None
+            self._cache['state'] = self.env._k.encode_state(self._context(), self.state_layout, obs)
         return self._cache['state']

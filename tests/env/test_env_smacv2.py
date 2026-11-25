@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from unismac import scenarios
+from unismac.adapters.pymarl import PyMARLEnv
 from unismac.assets import load_static_data
 from unismac.backends.sc2.backend import CAPABILITIES as SC2_CAPABILITIES
 from unismac.contract import CapabilityError, CommandKind, WorldState
@@ -63,7 +64,13 @@ class _StubSc2:
 
 
 def _dims(env):
-    return (env.get_obs_size(), env.get_state_size(), env.get_total_actions(), env.get_cap_size())
+    cap_size = int(env.config.capability.attack is not None) + env.catalog.unit_type_bits
+    return (
+        env.obs_layout.reported_size,
+        env.state_layout.reported_size,
+        env.n_actions,
+        cap_size,
+    )
 
 
 def test_scenario_list_complete():
@@ -74,7 +81,7 @@ def test_scenario_list_complete():
 def test_smacv2_dims(name):
     env = make_vec_env('smacv2', name, backend=_StubSc2())
     assert _dims(env) == SMACV2_DIMS[name]
-    info = env.get_env_info()
+    info = PyMARLEnv(env).get_env_info()
     assert info['cap_shape'] == SMACV2_DIMS[name][3]
     assert info['n_agents'] == env.n_agents
 
@@ -90,8 +97,13 @@ def test_smac_and_smacv2_in_one_process():
     v1 = make_vec_env('smac', 'MMM', backend=_StubSc2())
     v2 = make_vec_env('smacv2', 'MMM', backend=_StubSc2())
     v2g = make_vec_env('smacv2', '10gen_terran', backend=_StubSc2())
-    assert (v1.get_obs_size(), v2.get_obs_size(), v2g.get_obs_size()) == (160, 160, 82)
-    assert 'cap_shape' not in v1.get_env_info() and v2.get_env_info()['cap_shape'] == 3
+    assert (
+        v1.obs_layout.reported_size,
+        v2.obs_layout.reported_size,
+        v2g.obs_layout.reported_size,
+    ) == (160, 160, 82)
+    assert 'cap_shape' not in PyMARLEnv(v1).get_env_info()
+    assert PyMARLEnv(v2).get_env_info()['cap_shape'] == 3
     assert v1.config.reward.only_positive_mode == 'abs'
     assert v2.config.reward.only_positive_mode == 'clamp'
     rng = np.random.default_rng(0)
@@ -99,7 +111,7 @@ def test_smac_and_smacv2_in_one_process():
         env = make_vec_env(preset, name, backend='pyref', batch_size=2, seed=0)
         env.reset()
         for _ in range(5):
-            avail = env.get_avail_actions()
+            avail = env.avail_actions()
             acts = np.array([[rng.choice(np.flatnonzero(r)) for r in rows] for rows in avail])
             env.step(acts)
         env.close()
@@ -171,18 +183,20 @@ def _recorded(name, overrides, seed=0):
 
 def test_fov_turn_sets_direction_without_command():
     env, be = _recorded('10gen_protoss', {'conic_fov': True, 'num_fov_actions': 4})
-    assert env.n_actions == 6 + 4 + env.n_enemies and env.fov is not None
+    assert env.n_actions == 6 + 4 + env.n_enemies and env._fov is not None
     env.reset()
-    np.testing.assert_array_equal(env.fov.dirs[0], np.tile([1.0, 0.0], (env.n_agents, 1)))
+    np.testing.assert_array_equal(env._fov.dirs[0], np.tile([1.0, 0.0], (env.n_agents, 1)))
     acts = np.full((1, env.n_agents), 1)  # STOP
     acts[0, 0] = 6 + 1  # direction 1: pi/2
     env.step(acts)
-    np.testing.assert_allclose(env.fov.dirs[0, 0], [0.0, 1.0], atol=1e-12)
-    np.testing.assert_array_equal(env.fov.dirs[0, 1:], np.tile([1.0, 0.0], (env.n_agents - 1, 1)))
+    np.testing.assert_allclose(env._fov.dirs[0, 0], [0.0, 1.0], atol=1e-12)
+    np.testing.assert_array_equal(env._fov.dirs[0, 1:], np.tile([1.0, 0.0], (env.n_agents - 1, 1)))
     kinds = be.commands[-1].kind[0]
-    ally_slots = [i for i, sp in enumerate(env.last_scenarios[0].spawns) if sp.owner == 1]
+    sc0 = env.runtime.last_scenarios()[0]
+    assert sc0 is not None
+    ally_slots = [i for i, sp in enumerate(sc0.spawns) if sp.owner == 1]
     assert sorted(kinds[ally_slots].tolist()).count(int(CommandKind.NOOP)) == 1
-    names = env.get_env_info()['agent_features']
+    names = env.obs_layout.own
     assert 'fov_x' in names and 'fov_y' in names
 
 
@@ -197,18 +211,19 @@ def test_stochastic_attack_drops_commands():
     }
     env, be = _recorded('10gen_protoss', {'capability_config': cap})
     env.reset()
-    n_no = env.actions.n_no_attack
+    n_no = env._actions.n_no_attack
     issued = 0
+    attacking = np.zeros(env.n_agents, bool)
     for _ in range(40):
-        avail = env.get_avail_actions()[0]
+        avail = env.avail_actions()[0]
         acts = np.array([[np.flatnonzero(r)[-1] for r in avail]])
         attacking = acts[0] >= n_no
-        _, done, _ = env.step(acts)
+        step = env.step(acts)
         kinds = be.commands[-1].kind[0]
         issued += int((kinds == CommandKind.ATTACK_UNIT).sum())
         if attacking.any():
             break
-        if done[0]:
+        if step.terminated[0] or step.truncated[0]:
             env.reset()
     assert attacking.any() and issued == 0
 
@@ -223,8 +238,8 @@ def test_range_check_at_issue_time():
     }
     env, be = _recorded('10gen_protoss', {'capability_config': cap, 'action_mask': False})
     env.reset()
-    n_no = env.actions.n_no_attack
-    avail = env.get_avail_actions()[0]
+    n_no = env._actions.n_no_attack
+    avail = env.avail_actions()[0]
     assert (avail[:, n_no:] == 1).all()  # all live enemies selectable
     acts = np.array([[n_no] * env.n_agents])
     env.step(acts)
@@ -239,17 +254,19 @@ def test_generated_pyref_episodes(name):
     rng = np.random.default_rng(0)
     ends = 0
     for _ in range(400):
-        avail = env.get_avail_actions()
+        avail = env.avail_actions()
         acts = np.array([[rng.choice(np.flatnonzero(r)) for r in rows] for rows in avail])
-        reward, done, infos = env.step(acts)
-        assert np.isfinite(reward).all() and np.isfinite(env.get_obs()).all()
+        step = env.step(acts)
+        done = step.terminated | step.truncated
+        assert np.isfinite(step.reward).all() and np.isfinite(env.obs()).all()
         if done.any():
             ends += int(done.sum())
             env.reset(np.flatnonzero(done).tolist())
     assert ends >= 4
-    caps = env.get_capabilities().reshape(4, env.n_agents, -1)
+    caps = env.capabilities().reshape(4, env.n_agents, -1)
     assert (caps.sum(-1) == 1).all()  # one-hot unit type
-    for sc in env.last_scenarios.values():
+    for sc in env.runtime.last_scenarios():
+        assert sc is not None
         x0, y0, x1, y1 = (2, 2, 30, 30)
         assert all(x0 <= s.x <= x1 and y0 <= s.y <= y1 for s in sc.spawns)  # spawn_clamp
 
@@ -270,13 +287,14 @@ def test_health_capability_rejected():
 def test_smacv2_portable_mmm_heal_on_pyref():
     """smacv2-portable enables Medivac heal like smac-portable (pyref abilities='heal')."""
     env = make_vec_env('smacv2-portable', 'MMM', backend='pyref', batch_size=2, seed=0)
-    assert env.actions.heal_enabled and env.backend.capabilities.abilities
+    assert env._actions.heal_enabled and env.runtime.backend.capabilities.abilities
     rng = np.random.default_rng(0)
     env.reset()
     for _ in range(60):
-        avail = env.get_avail_actions()
+        avail = env.avail_actions()
         acts = np.array([[rng.choice(np.flatnonzero(r)) for r in rows] for rows in avail])
-        _, done, _ = env.step(acts)
+        step = env.step(acts)
+        done = step.terminated | step.truncated
         if done.any():
             env.reset(np.flatnonzero(done).tolist())
     env.close()

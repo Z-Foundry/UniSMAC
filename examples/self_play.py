@@ -1,8 +1,9 @@
 """Symmetric two-sided self-play example with UniSMAC.
 
-Controls both Player 1 (side=1) and Player 2 (side=2) with external policies
+Controls both Player 1 (`side=1`) and Player 2 (`side=2`) with external policies
 using `dual=True` (automatically selecting the unbiased `sc2-symmetric` profile
-and mirror spawning on mirrorable maps).
+and mirror spawning on mirrorable maps) and reads both rewards directly from
+`StepBatch.reward` and `StepBatch.reward_enemy`.
 
 Run:
     python examples/self_play.py
@@ -89,8 +90,8 @@ def main() -> int:
 
     with ctx as env:
         env.reset()
-        obs_p1 = env.get_obs(side=1)
-        obs_p2 = env.get_obs(side=2)
+        obs_p1 = env.obs(side=1)
+        obs_p2 = env.obs(side=2)
         rng_p1 = np.random.default_rng(args.seed)
         rng_p2 = np.random.default_rng(args.seed + 10_000)
 
@@ -103,17 +104,19 @@ def main() -> int:
 
         t0 = time.perf_counter()
         for _ in range(args.steps):
-            acts_p1 = sample_valid_actions(env.get_avail_actions(side=1), rng_p1)
-            acts_p2 = sample_valid_actions(env.get_avail_actions(side=2), rng_p2)
-            rewards_p1, terminated, infos = env.step(acts_p1, enemy_actions=acts_p2)
-            p1_reward += float(rewards_p1.sum())
-            p2_reward += sum(float(info.get('reward_enemy', 0.0)) for info in infos)
-            if terminated.any():
-                done_ids = np.flatnonzero(terminated).tolist()
+            acts_p1 = sample_valid_actions(env.avail_actions(side=1), rng_p1)
+            acts_p2 = sample_valid_actions(env.avail_actions(side=2), rng_p2)
+            batch = env.step(acts_p1, enemy_actions=acts_p2)
+            p1_reward += float(batch.reward.sum())
+            assert batch.reward_enemy is not None
+            p2_reward += float(batch.reward_enemy.sum())
+            done = batch.terminated | batch.truncated
+            if done.any():
+                done_ids = np.flatnonzero(done).tolist()
                 episodes += len(done_ids)
                 for i in done_ids:
-                    won = bool(infos[i].get('battle_won'))
-                    lost = bool(infos[i].get('battle_lost'))
+                    won = bool(batch.infos[i].get('battle_won'))
+                    lost = bool(batch.infos[i].get('battle_lost'))
                     if won and not lost:
                         p1_wins += 1
                     elif lost and not won:

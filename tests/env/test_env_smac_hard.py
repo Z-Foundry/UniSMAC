@@ -8,19 +8,20 @@ import numpy as np
 import pytest
 
 from unismac import scenarios
+from unismac.adapters.pymarl import PyMARLEnv, make_pymarl_env
 from unismac.contract import CapabilityError
-from unismac.env import UnismacEnv, make_env, make_vec_env
+from unismac.env import make_vec_env
 from unismac.env.opponents.scripted import POOLS, ScriptedOpponent
 
 
 def _scripted(env) -> ScriptedOpponent:
-    opp = env.opponent
+    opp = env._opponent
     assert isinstance(opp, ScriptedOpponent)
     return opp
 
 
 def _random_actions(env, rng) -> np.ndarray:
-    avail = env.get_avail_actions()
+    avail = env.avail_actions()
     return np.array(
         [[int(rng.choice(np.flatnonzero(row))) for row in avail[b]] for b in range(len(avail))]
     )
@@ -38,7 +39,8 @@ def test_portable_pyref_runs(name):
         for _ in range(300):
             assert set(_scripted(env).names) == {0, 1, 2, 3}
             assert set(_scripted(env).names.values()) <= set(POOLS[name])
-            _, done, _ = env.step(_random_actions(env, rng))
+            step = env.step(_random_actions(env, rng))
+            done = step.terminated | step.truncated
             if done.any():
                 done_eps += int(done.sum())
                 env.reset(np.flatnonzero(done).tolist())
@@ -48,8 +50,8 @@ def test_portable_pyref_runs(name):
 def _run(env, rng, n: int) -> None:
     env.reset()
     for _ in range(n):
-        _, done, _ = env.step(_random_actions(env, rng))
-        if done.any():
+        step = env.step(_random_actions(env, rng))
+        if (step.terminated | step.truncated).any():
             env.reset()
 
 
@@ -115,7 +117,7 @@ def _episode(env, rng) -> tuple[int, dict]:
 @pytest.mark.sc2
 def test_smac_hard_3m_sc2_duel():
     """smac-hard 3m: two-process duel (two AgentPlayers), scripted opponent, 2 episodes."""
-    env = make_env('smac-hard', '3m', backend='sc2', seed=0)
+    env = make_pymarl_env('smac-hard', '3m', backend='sc2', seed=0)
     try:
         # Upstream sizing: padding = max(3, 3, 9) = 9, n_actions = 6 + 9 + 9
         assert (env.get_obs_size(), env.get_state_size(), env.get_total_actions()) == (
@@ -123,12 +125,12 @@ def test_smac_hard_3m_sc2_duel():
             48 + 3 * 15,
             24,
         )
-        assert isinstance(env, UnismacEnv)
+        assert isinstance(env, PyMARLEnv)
         vec = env.vec
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', RuntimeWarning)
             steps, info = _episode(env, np.random.default_rng(0))
-            session = vec.backend.session  # type: ignore[attr-defined]
+            session = vec.runtime.backend.session  # type: ignore[attr-defined]
             assert session is not None and len(session.controllers) == 2
             assert 0 < steps <= env.episode_limit and 'battle_won' in info
             first = _scripted(vec).names[0]
@@ -143,7 +145,7 @@ def test_smac_hard_3m_sc2_duel():
 @pytest.mark.sc2
 def test_smac_hard_portable_3m_sc2():
     """smac-hard-portable on SC2: explicit spawns (spawns_hard.json) and two AgentPlayers."""
-    env = make_env('smac-hard-portable', '3m', backend='sc2', seed=0)
+    env = make_pymarl_env('smac-hard-portable', '3m', backend='sc2', seed=0)
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', RuntimeWarning)

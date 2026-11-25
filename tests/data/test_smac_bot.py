@@ -67,7 +67,7 @@ def _world_bitwise_equal(a: WorldState, b: WorldState) -> None:
 
 
 def _nearest_or_random_actions(env: VecEnv, rng: np.random.Generator) -> np.ndarray:
-    avail = env.get_avail_actions()
+    avail = env.avail_actions()
     out = np.zeros(avail.shape[:2], dtype=np.int64)
     for b in range(avail.shape[0]):
         for a in range(avail.shape[1]):
@@ -122,7 +122,7 @@ def test_accel_and_native_smac_overrides() -> None:
         try:
             expected_accel = 'services' if accel_mod.native_available() else 'python'
             assert env.accel == expected_accel
-            assert type(env.opponent) is NativeSMACOpponent
+            assert type(env._opponent) is NativeSMACOpponent
         finally:
             env.close()
 
@@ -163,9 +163,10 @@ def test_all_23_maps_opening_orders() -> None:
         env = make_vec_env('smac-portable', map_name, backend='pyref', seed=0, overrides=ov)
         try:
             env.reset()
-            opp = env.opponent
+            opp = env._opponent
             assert isinstance(opp, NativeSMACOpponent)
-            w = env.world
+            w = env.runtime.world
+            assert w is not None
             enemies = np.flatnonzero(w.alive[0] & (w.owner[0] == 2)).tolist()
             allies = np.flatnonzero(w.alive[0] & (w.owner[0] == 1)).tolist()
             assert len(enemies) == env.n_enemies, map_name
@@ -239,11 +240,11 @@ def test_2m_vs_1z_deterministic_and_batch_independent() -> None:
     ]
     try:
         batch.reset()
-        b_opp = batch.opponent
+        b_opp = batch._opponent
         assert isinstance(b_opp, NativeSMACOpponent)
         for i, s_env in enumerate(singles):
             s_env.reset()
-            s_opp = s_env.opponent
+            s_opp = s_env._opponent
             assert isinstance(s_opp, NativeSMACOpponent)
             assert b_opp.opening_targets[i] == s_opp.opening_targets[0]
             assert b_opp.opening_orders(i) == s_opp.opening_orders(0)
@@ -260,7 +261,7 @@ def test_2m_vs_1z_deterministic_and_batch_independent() -> None:
         xs: list[float] = []
         for _ in range(16):
             singles[0].reset()
-            tgt = singles[0].opponent.opening_targets[0]  # type: ignore[attr-defined]
+            tgt = singles[0]._opponent.opening_targets[0]  # type: ignore[attr-defined]
             assert tgt is not None
             assert 13.0 <= tgt[0] <= 19.0 and abs(tgt[1] - 12.0) < 1e-6
             xs.append(tgt[0])
@@ -281,9 +282,10 @@ def test_medivac_escort_and_rl_asymmetry(scenario: str, backend: Literal['pyref'
     env = make_vec_env('smac-portable', scenario, backend=backend, seed=0, overrides=ov)
     try:
         env.reset()
-        opp = env.opponent
+        opp = env._opponent
         assert isinstance(opp, NativeSMACOpponent)
-        w = env.world
+        w = env.runtime.world
+        assert w is not None
         p1_meds = np.flatnonzero((w.owner[0] == 1) & (w.unit_type[0] == MEDIVAC_TYPE)).tolist()
         p2_meds = np.flatnonzero((w.owner[0] == 2) & (w.unit_type[0] == MEDIVAC_TYPE)).tolist()
         assert len(p1_meds) == 1 and len(p2_meds) == 1
@@ -300,23 +302,26 @@ def test_medivac_escort_and_rl_asymmetry(scenario: str, backend: Literal['pyref'
         m2_x0 = float(w.x[0, m2])
 
         def _still() -> np.ndarray:
-            av = env.get_avail_actions()
+            av = env.avail_actions()
             return np.where(av[..., 1] == 1, 1, 0).astype(np.int64)
 
         env.step(_still())
         env.step(_still())
-        assert float(env.world.x[0, m2]) < m2_x0 - 0.5
+        assert env.runtime.world is not None
+        assert float(env.runtime.world.x[0, m2]) < m2_x0 - 0.5
 
         # Player 1 Medivac_RL never autocasts healing while Player 1 holds still
         p1_ever_healed_on_still = False
         for _ in range(18):
-            _, term, _ = env.step(_still())
+            step = env.step(_still())
+            w_cur = env.runtime.world
+            assert w_cur is not None
             if (
-                int(env.world.order_kind[0, m1]) == CommandKind.ABILITY
-                and int(env.world.order_ability[0, m1]) == HEAL_ABILITY
+                int(w_cur.order_kind[0, m1]) == CommandKind.ABILITY
+                and int(w_cur.order_ability[0, m1]) == HEAL_ABILITY
             ):
                 p1_ever_healed_on_still = True
-            if term[0]:
+            if step.terminated[0] or step.truncated[0]:
                 break
         assert not p1_ever_healed_on_still
 
@@ -325,24 +330,28 @@ def test_medivac_escort_and_rl_asymmetry(scenario: str, backend: Literal['pyref'
         rng = np.random.default_rng(7)
         p2_healed = False
         for _ in range(25):
-            _, term, _ = env.step(_nearest_or_random_actions(env, rng))
+            step = env.step(_nearest_or_random_actions(env, rng))
+            w_cur = env.runtime.world
+            assert w_cur is not None
             if (
-                int(env.world.order_kind[0, m2]) == CommandKind.ABILITY
-                and int(env.world.order_ability[0, m2]) == HEAL_ABILITY
+                int(w_cur.order_kind[0, m2]) == CommandKind.ABILITY
+                and int(w_cur.order_ability[0, m2]) == HEAL_ABILITY
             ):
                 p2_healed = True
                 break
-            if term[0]:
+            if step.terminated[0] or step.truncated[0]:
                 break
         assert p2_healed
 
         # Verify escort waypoint resumption when idle and no injured allies are nearby
         env.reset()
+        w_cur = env.runtime.world
+        assert w_cur is not None
         wp = opp._medivac_wp[0][m2]
         assert not opp._medivac_arrived[0][m2]
-        cmd = Command.noop(env.batch_size, env.world.n_slots)
+        cmd = Command.noop(env.batch_size, w_cur.n_slots)
         opp._pending[0] = False
-        opp._step_medivac_escort(env.world, cmd, 0)
+        opp._step_medivac_escort(w_cur, cmd, 0)
         assert int(cmd.kind[0, m2]) == CommandKind.MOVE
         assert (
             math.hypot(float(cmd.target_x[0, m2]) - wp[0], float(cmd.target_y[0, m2]) - wp[1])
@@ -372,27 +381,30 @@ def test_pyref_zgame_bitwise_parity_native_smac(
     e_py = make_vec_env('smac-portable', scenario, backend='pyref', seed=5, overrides=ov)
     e_zg = make_vec_env('smac-portable', scenario, backend='zgame', seed=5, overrides=ov)
     try:
-        obs_py, st_py = e_py.reset()
-        obs_zg, st_zg = e_zg.reset()
-        _world_bitwise_equal(e_py.world, e_zg.world)
-        np.testing.assert_array_equal(obs_py, obs_zg)
-        np.testing.assert_array_equal(st_py, st_zg)
+        e_py.reset()
+        e_zg.reset()
+        assert e_py.runtime.world is not None and e_zg.runtime.world is not None
+        _world_bitwise_equal(e_py.runtime.world, e_zg.runtime.world)
+        np.testing.assert_array_equal(e_py.obs(), e_zg.obs())
+        np.testing.assert_array_equal(e_py.state(), e_zg.state())
 
         rng = np.random.default_rng(13)
         max_steps = 80 if scenario == '2c_vs_64zg' else 120
         for _ in range(max_steps):
-            av_py = e_py.get_avail_actions()
-            av_zg = e_zg.get_avail_actions()
+            av_py = e_py.avail_actions()
+            av_zg = e_zg.avail_actions()
             np.testing.assert_array_equal(av_py, av_zg)
             acts = _nearest_or_random_actions(e_py, rng)
-            r_py, d_py, _ = e_py.step(acts)
-            r_zg, d_zg, _ = e_zg.step(acts)
-            _world_bitwise_equal(e_py.world, e_zg.world)
-            np.testing.assert_array_equal(r_py, r_zg)
-            np.testing.assert_array_equal(d_py, d_zg)
-            np.testing.assert_array_equal(e_py.get_obs(), e_zg.get_obs())
-            np.testing.assert_array_equal(e_py.get_state(), e_zg.get_state())
-            if d_py[0]:
+            s_py = e_py.step(acts)
+            s_zg = e_zg.step(acts)
+            assert e_py.runtime.world is not None and e_zg.runtime.world is not None
+            _world_bitwise_equal(e_py.runtime.world, e_zg.runtime.world)
+            np.testing.assert_array_equal(s_py.reward, s_zg.reward)
+            np.testing.assert_array_equal(s_py.terminated, s_zg.terminated)
+            np.testing.assert_array_equal(s_py.truncated, s_zg.truncated)
+            np.testing.assert_array_equal(e_py.obs(), e_zg.obs())
+            np.testing.assert_array_equal(e_py.state(), e_zg.state())
+            if s_py.terminated[0] or s_py.truncated[0]:
                 break
     finally:
         e_py.close()

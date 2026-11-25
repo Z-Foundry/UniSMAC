@@ -1,7 +1,7 @@
 PYTHON ?= python3
 JOBS ?= 4
 
-.PHONY: help lint fmt typecheck test-fast test test-zgame test-slow manifest-check manifest-locked manifest-write check
+.PHONY: help lint fmt typecheck test-fast test test-zgame test-adapters test-slow manifest-check manifest-locked manifest-write check
 
 help:
 	@printf '%s\n' \
@@ -12,6 +12,7 @@ help:
 	  '  make test-fast        Run unit tests (skips sc2, slow, parity)' \
 	  '  make test             Run default test suite (not sc2 and not slow)' \
 	  '  make test-zgame       Run zgame backend and accel tier parity tests' \
+	  '  make test-adapters    Run PyMARL, Gymnasium, and PettingZoo adapter tests' \
 	  '  make test-slow        Run full E1 pyref grid (-m slow)' \
 	  '  make manifest-check   Check env/accel/rust_manifest.json consistency' \
 	  '  make manifest-locked  List files and VecEnv methods locked by manifest' \
@@ -36,6 +37,9 @@ test:
 
 test-zgame:
 	OMP_NUM_THREADS=1 $(PYTHON) -m pytest -n $(JOBS) tests/zgame tests/env/test_env_accel.py tests/env/test_env_scripted_rust.py -m "not sc2 and not slow"
+
+test-adapters:
+	OMP_NUM_THREADS=1 $(PYTHON) -m pytest tests/adapters
 
 test-slow:
 	OMP_NUM_THREADS=1 $(PYTHON) -m pytest -n $(JOBS) -m "slow"

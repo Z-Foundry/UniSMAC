@@ -130,7 +130,7 @@ class ScriptedOpponent(Opponent):
         return self.env
 
     def _stream(self, b: int, frame: int) -> np.random.Generator:
-        return self._require_env().rng_stream('opponent', b, frame)
+        return self._require_env()._rng_stream('opponent', b, frame)
 
     def check_names(self, names: Sequence[str | None]) -> None:
         for name in names:
@@ -166,7 +166,7 @@ class ScriptedOpponent(Opponent):
             self._sync(world, b)
 
     def _slots(self, b: int) -> tuple[np.ndarray, np.ndarray]:
-        view = self._require_env().view
+        view = self._require_env()._view
         assert view.ally_slots is not None and view.enemy_slots is not None
         return view.enemy_slots[b], view.ally_slots[b]
 
@@ -206,7 +206,7 @@ class ScriptedOpponent(Opponent):
 
     def _abilities(self, world: WorldState, b: int) -> list[AbilityEntry]:
         env = self._require_env()
-        query = env.query_abilities()
+        query = env._query_abilities()
         mine, _ = self._slots(b)
         out = []
         for s in mine:
@@ -223,7 +223,7 @@ class ScriptedOpponent(Opponent):
             script = self.scripts[b]
             self._sync(world, b)
             mine, theirs = self._units[b]
-            t = int(env.episode_steps[b])
+            t = int(env._episode_steps[b])
             self._choice[b].rng = self._stream(b, t + 1)
             abilities = self._abilities(world, b) if script.needs_abilities else []
             try:

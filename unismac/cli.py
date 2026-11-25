@@ -373,11 +373,12 @@ def _cmd_bench(args: argparse.Namespace) -> int:
         episodes = 0
         t0 = time.perf_counter()
         for _ in range(args.steps):
-            avail = env.get_avail_actions()
+            avail = env.avail_actions()
             actions = (rng.random(avail.shape) * avail).argmax(-1)
-            _, terminated, _ = env.step(actions)
-            if terminated.any():
-                done_ids = np.flatnonzero(terminated).tolist()
+            batch = env.step(actions)
+            done = batch.terminated | batch.truncated
+            if done.any():
+                done_ids = np.flatnonzero(done).tolist()
                 episodes += len(done_ids)
                 env.reset(done_ids)
         elapsed = max(time.perf_counter() - t0, 1e-9)

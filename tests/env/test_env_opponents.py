@@ -29,22 +29,24 @@ def _run(backend: str, plan: Plan, n_steps: int = 150) -> list[list[Any]]:
     rows: list[list[Any]] = [[], [], []]
 
     def reset(ids: list[int]) -> None:
-        given = [plan.get((b, int(env.reset_count[b]))) for b in ids]
+        counts = env.runtime.reset_count()
+        given = [plan.get((b, int(counts[b]))) for b in ids]
         env.reset(ids, opponents=given if any(given) else None)
-        obs, state, names = env.get_obs(), env.get_state(), env.opponent_names()
+        obs, state, names = env.obs(), env.state(), env.runtime.opponent_names()
         for b in ids:
             rows[b].append((names[b], obs[b].copy(), state[b].copy()))
 
     reset([0, 1, 2])
     for _ in range(n_steps):
-        avail = env.get_avail_actions()
+        avail = env.avail_actions()
         acts = np.array(
             [[int(rngs[b].choice(np.flatnonzero(r))) for r in avail[b]] for b in range(3)]
         )
-        reward, term, infos = env.step(acts)
-        obs, state = env.get_obs(), env.get_state()
+        step = env.step(acts)
+        term = step.terminated | step.truncated
+        obs, state = env.obs(), env.state()
         for b in range(3):
-            rows[b].append((reward[b], term[b], obs[b].copy(), state[b].copy(), infos[b]))
+            rows[b].append((step.reward[b], term[b], obs[b].copy(), state[b].copy(), step.infos[b]))
         ids = np.flatnonzero(term).tolist()
         if ids:
             reset(ids)
@@ -121,10 +123,10 @@ def test_later_draws_unchanged_after_naming() -> None:
     def draws(first: str | None) -> list[list[str | None]]:
         env = make_vec_env(PRESET, SCENARIO, backend='pyref', batch_size=3, seed=SEED)
         env.reset(opponents=[first, None, None])
-        seq = [env.opponent_names()]
+        seq = [env.runtime.opponent_names()]
         for _ in range(6):
             env.reset([0, 2])
-            seq.append(env.opponent_names())
+            seq.append(env.runtime.opponent_names())
         env.close()
         return seq
 
@@ -138,7 +140,7 @@ def test_later_draws_unchanged_after_naming() -> None:
 def test_opponents_validation() -> None:
     env = make_vec_env(PRESET, SCENARIO, backend='pyref', batch_size=2, seed=1)
     env.reset()
-    before = (env.reset_count.copy(), env.opponent_names(), env.get_obs().copy())
+    before = (env.runtime.reset_count(), env.runtime.opponent_names(), env.obs().copy())
     assert 'MMM' in SCRIPTS and 'MMM' not in POOLS[SCENARIO]
     for bad, msg in (
         (['nope', None], '(?i)unknown script'),
@@ -149,11 +151,11 @@ def test_opponents_validation() -> None:
             env.reset(opponents=bad)
     with pytest.raises(ValueError, match='(?i)script pool'):
         env.reset([1], opponents=['MMM'])
-    np.testing.assert_array_equal(env.reset_count, before[0])
-    assert env.opponent_names() == before[1]
-    np.testing.assert_array_equal(env.get_obs(), before[2])
+    np.testing.assert_array_equal(env.runtime.reset_count(), before[0])
+    assert env.runtime.opponent_names() == before[1]
+    np.testing.assert_array_equal(env.obs(), before[2])
     env.reset([1], opponents=['2s3z_1'])
-    assert env.opponent_names()[1] == '2s3z_1'
+    assert env.runtime.opponent_names()[1] == '2s3z_1'
 
     # User-overridden script pool: names outside the custom pool also raise
     pooled = make_vec_env(
@@ -167,10 +169,13 @@ def test_opponents_validation() -> None:
     plain = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=2, seed=1)
     with pytest.raises(ValueError, match='not a scripted opponent'):
         plain.reset(opponents=['base', None])
-    obs, _ = plain.reset(opponents=[None, None])
-    ref, _ = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=2, seed=1).reset()
-    np.testing.assert_array_equal(obs, ref)
-    assert plain.opponent_names() == [None, None]
+    plain.reset(opponents=[None, None])
+    obs = plain.obs()
+    ref_env = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=2, seed=1)
+    ref_env.reset()
+    np.testing.assert_array_equal(obs, ref_env.obs())
+    assert plain.runtime.opponent_names() == [None, None]
+    ref_env.close()
 
 
 def test_script_pool_public() -> None:
@@ -186,4 +191,4 @@ def test_script_pool_public() -> None:
     with pytest.raises(ValueError):
         script_pool(config.opponent, 'so_many_baneling')
     env = make_vec_env(PRESET, SCENARIO, backend='pyref', seed=0)
-    assert env.opponent.pool == pool  # type: ignore[attr-defined]
+    assert env._opponent.pool == pool  # type: ignore[attr-defined]

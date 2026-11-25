@@ -87,16 +87,18 @@ FUNCTIONS = tuple(
     for m in (
         '__init__',
         '_generated_scenario',
-        'rng_stream',
-        'rng_streams',
+        '_rng_stream',
+        '_rng_streams',
         'reset',
         'step',
         '_context',
-        'get_avail_actions',
+        '_avail',
         '_obs_rng',
-        'get_obs',
-        'get_state',
-        'query_abilities',
+        '_ensure_spotter',
+        '_obs',
+        '_state',
+        '_query_abilities',
+        '_ability_choice',
     )
 )
 

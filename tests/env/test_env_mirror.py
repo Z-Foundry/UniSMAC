@@ -178,9 +178,10 @@ def test_mirror_spawn_in_env(backend: str) -> None:
         seeds=[1, 2, 3],
         overrides=dual_over('acc-ram-cov-axo-sym'),
     )
-    assert env.mirror == 'x' and env.scenario is not None and env.scenario.mirror == 'x'
+    assert env.mirror == 'x' and env._scenario is not None and env._scenario.mirror == 'x'
     env.reset()
-    w = env.world
+    w = env.runtime.world
+    assert w is not None
     n = env.n_agents
     assert (w.owner[:, :n] == 1).all() and (w.owner[:, n:] == 2).all()
     np.testing.assert_allclose(w.x[:, n:], 32.0 - w.x[:, :n], atol=4e-6)
@@ -188,7 +189,7 @@ def test_mirror_spawn_in_env(backend: str) -> None:
     assert len(set(w.facing[:, :n].ravel().tolist())) > 1  # randomized facing
     want = np.vectorize(lambda t: mirror_facing(t, 'x'), otypes=[np.float32])(w.facing[:, :n])
     assert w.facing[:, n:].tobytes() == want.tobytes()
-    assert all(s.mirror == 'x' for s in env.last_scenarios.values())
+    assert all(s is not None and s.mirror == 'x' for s in env.runtime.last_scenarios())
 
 
 def test_mirror_facing_same_on_both_backends() -> None:
@@ -209,7 +210,8 @@ def test_mirror_facing_same_on_both_backends() -> None:
             overrides=dual_over('acc-ram-cov-axo-sym'),
         )
         env.reset()
-        worlds.append(env.world)
+        assert env.runtime.world is not None
+        worlds.append(env.runtime.world)
     for name in ('x', 'y', 'facing'):
         assert getattr(worlds[0], name).tobytes() == getattr(worlds[1], name).tobytes(), name
 
@@ -227,8 +229,8 @@ def test_mirror_only_where_it_applies() -> None:
         env = make_vec_env(preset, scenario, backend='pyref', batch_size=1, overrides=over)
         assert env.mirror == want, (preset, scenario)
         env.reset()
-        got = env.last_scenarios[0].mirror
-        assert got == want, (preset, scenario)
+        sc = env.runtime.last_scenarios()[0]
+        assert sc is not None and sc.mirror == want, (preset, scenario)
 
 
 # ---------------------------------------------------------------- Mirrored initial observations
@@ -239,8 +241,8 @@ _SWAP = {'x': ('move_east', 'move_west'), 'y': ('move_north', 'move_south')}
 def _blocks(env: Any, side: int, b: int) -> dict[int, dict[tuple[Any, ...], float]]:
     """Unpack side's obs for env b into (block, target_slot, feat) keyed by agent slot."""
     lay = env.obs_layout_for(side)
-    obs = env.get_obs(side)[b]
-    f = env.frame_for(side)
+    obs = env.obs(side)[b]
+    f = env.runtime.frame(side)
     allies, enemies = f.allies.slot[b].tolist(), f.enemies.slot[b].tolist()
     out = {}
     for i, s in enumerate(allies):
@@ -313,7 +315,7 @@ def test_start_observation_mirrors(preset: str, scenario: str, profile: str, bac
     env.reset()
     n = env.n_agents
     lo, hi = env._playable[0 if axis == 'x' else 1], env._playable[2 if axis == 'x' else 3]
-    map_size = env.terrain.map_x if axis == 'x' else env.terrain.map_y
+    map_size = env._terrain.map_x if axis == 'x' else env._terrain.map_y
     for b in range(2):
         one, two = _blocks(env, 1, b), _blocks(env, 2, b)
         assert sorted(two) == [s + n for s in sorted(one)]
@@ -324,8 +326,8 @@ def test_start_observation_mirrors(preset: str, scenario: str, profile: str, bac
                 k2, want = _mirrored(key, v, axis, n, (lo + hi) / map_size)
                 assert abs(other[k2] - want) <= 1e-5, (b, s, key, v, other[k2])
         # Available actions: swap move directions and map targets by mirrored slots
-        av1, av2 = env.get_avail_actions(1)[b], env.get_avail_actions(2)[b]
-        f1, f2 = env.frame_for(1), env.frame_for(2)
+        av1, av2 = env.avail_actions(1)[b], env.avail_actions(2)[b]
+        f1, f2 = env.runtime.frame(1), env.runtime.frame(2)
         a1, a2 = f1.allies.slot[b].tolist(), f2.allies.slot[b].tolist()
         e1, e2 = f1.enemies.slot[b].tolist(), f2.enemies.slot[b].tolist()
         swap = [0, 1, 2, 3, 5, 4] if axis == 'x' else [0, 1, 3, 2, 4, 5]
@@ -340,7 +342,7 @@ def test_start_observation_mirrors(preset: str, scenario: str, profile: str, bac
                 assert av2[j, 6 + u] == av1[i, 6 + t], (b, i, t)
         # State: map ally/enemy blocks by mirrored slots and negate rel_<axis>
         lay1 = env.state_layout_for(1)
-        st1, st2 = env.get_state(1)[b], env.get_state(2)[b]
+        st1, st2 = env.state(1)[b], env.state(2)[b]
         k_al, k_en = len(lay1.ally), len(lay1.enemy)
         for i, s in enumerate(a1):
             j = a2.index(s + n)

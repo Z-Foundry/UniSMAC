@@ -1,6 +1,6 @@
 # UniSMAC Architecture & Code Map
 
-[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Environment Interface](interface.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md) · [Contributing](../CONTRIBUTING.md)
+[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Environment Interface](interface.md) · [Ecosystem Adapters](adapters.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md) · [Migration Guide](../MIGRATION.md) · [Contributing](../CONTRIBUTING.md)
 
 This guide is a fast navigation map for readers moving from running examples to reading or modifying the `unismac` and `zgame` codebases.
 
@@ -10,25 +10,28 @@ This guide is a fast navigation map for readers moving from running examples to 
 
 | Stage | Goal | Start Here |
 | --- | --- | --- |
-| **3 minutes** | Install and run vectorized rollouts or two-sided self-play | [README](../README.md) · [`examples/quickstart_vec.py`](../examples/quickstart_vec.py) · [`examples/self_play.py`](../examples/self_play.py) |
-| **15 minutes** | Integrate into a MARL trainer, switch backends, and explore profiles | [`examples/marl_loop_minimal.py`](../examples/marl_loop_minimal.py) · [`examples/sc2_eval.py`](../examples/sc2_eval.py) · [Environment Interface](interface.md) · [Profiles & Configuration](profiles-and-config.md) |
-| **30 minutes** | Trace one `step()`, compare Python and Rust kernels 1:1, and run contributor checks | This Code Map · [Architecture](architecture.md) · [Contributing](../CONTRIBUTING.md) |
+| **3 minutes** | Install and run vectorized rollouts, self-play, or Gymnasium / PettingZoo adapters | [README](../README.md) · [`examples/quickstart_vec.py`](../examples/quickstart_vec.py) · [`examples/gymnasium_vec.py`](../examples/gymnasium_vec.py) · [`examples/pettingzoo_parallel.py`](../examples/pettingzoo_parallel.py) |
+| **15 minutes** | Integrate into a MARL trainer, compare ecosystem adapters, switch backends, and explore profiles | [`examples/marl_loop_minimal.py`](../examples/marl_loop_minimal.py) · [`examples/sc2_eval.py`](../examples/sc2_eval.py) · [Environment Interface](interface.md) · [Ecosystem Adapters](adapters.md) · [Profiles & Configuration](profiles-and-config.md) |
+| **30 minutes** | Trace one `step()`, compare Python and Rust kernels 1:1, and run contributor checks | This Code Map · [Architecture](architecture.md) · [Migration Guide](../MIGRATION.md) · [Contributing](../CONTRIBUTING.md) |
 
 ---
 
 ## 2. End-to-End Trace of One `env.step()` Call
 
-Follow a single batched step from the public factory down through the Rust or Python simulation kernel:
+Follow a single batched step from the public factory (or an optional RL adapter) down through the Rust or Python simulation kernel:
 
 ```text
-make_vec_env() / make_env()               unismac/env/__init__.py
+Optional RL adapter (PyMARL / Gymnasium / PettingZoo)   unismac/adapters/{pymarl,gymnasium,pettingzoo}.py
+  └── delegates strictly one-way to make_vec_env()
+
+make_vec_env()                            unismac/env/__init__.py
   ├── resolve preset + scenario + profile unismac/presets/, unismac/scenarios/, unismac/profiles.py
   ├── merge EnvConfig overrides           unismac/env/config.py
   ├── select accel tier (auto/python/     unismac/env/accel/__init__.py
   │   services/rust) + manifest check     unismac/env/accel/classic.py, unismac/env/accel/manifest.py
-  └── construct backend + VecEnv          unismac/env/core.py (and UnismacEnv in unismac/env/single.py)
+  └── construct backend + VecEnv          unismac/env/core.py
 
-VecEnv.step(actions, enemy_actions)       unismac/env/core.py
+VecEnv.step(actions, enemy_actions) -> StepBatch        unismac/env/core.py
   1. Translate actions -> Command[B, U]   env/semantics/actions.py       (or env/accel/services.py -> _zgame.env)
   2. Merge Player 2 / opponent orders     env/dual.py, env/opponents/{__init__,smac_bot}.py, env/opponents/scripted/
                                           (or env/accel/semantics.py -> _zgame.env in accel='rust')
@@ -38,26 +41,33 @@ VecEnv.step(actions, enemy_actions)       unismac/env/core.py
          steering -> kinematics -> collision -> damage -> visibility
          (+ post-move late_scan / kill_scan hooks)
   4. Extract Frame + compute rewards,     env/semantics/{units,reward,termination,settle}.py
-     termination, and settlement          (or env/accel/{services,semantics}.py)
-  5. Lazily encode obs / state / masks    env/semantics/{features,visibility,spotter}.py
-                                          (or env/accel/semantics.py in accel='rust')
+     terminated / truncated (via timeouts (or env/accel/{services,semantics}.py)
+     delta), and StepBatch
+  5. Lazily project obs() / state() /     env/semantics/{features,visibility,spotter}.py
+     avail_actions() on demand            (or env/accel/semantics.py in accel='rust')
 ```
 
-### `unismac/env/` Layout (5 Core Files + 3 Subpackages)
+### `unismac/env/` & `unismac/adapters/` Layout
 
 ```text
-unismac/env/
-├── __init__.py          # Public factories & exports (make_env, make_vec_env, VecEnv, UnismacEnv, ...)
-├── config.py            # EnvConfig hierarchy, FLAT_NAMES, and apply_overrides
-├── core.py              # VecEnv batched environment
-├── single.py            # UnismacEnv single-env PyMARL/EPyMARL wrapper
-├── dual.py              # Two-sided self-play Seat and mirror-spawn geometry
-├── semantics/           # 14 pure environment-semantics modules
-│                        # (abilities, actions, catalog, features, generators, reward, rng,
-│                        #  services, settle, spotter, termination, terrain, units, visibility)
-├── opponents/           # Opponent protocol (__init__.py), smac_bot.py, and scripted/ (45 scripts)
-└── accel/               # Tier dispatch (__init__.py), classic.py, services.py, semantics.py,
-                         # manifest.py, and rust_manifest.json
+unismac/
+├── env/                 # 4 core runtime files + 3 subpackages (zero imports of adapters/):
+│   ├── __init__.py      # Public kernel factory & exports (make_vec_env, VecEnv, StepBatch, RuntimeView, ...)
+│   ├── config.py        # EnvConfig hierarchy, FLAT_NAMES, and apply_overrides
+│   ├── core.py          # Purified VecEnv kernel, StepBatch, and RuntimeView (0 pub->pub calls)
+│   ├── dual.py          # Two-sided self-play Seat and mirror-spawn geometry
+│   ├── semantics/       # 14 pure environment-semantics modules
+│   │                    # (abilities, actions, catalog, features, generators, reward, rng,
+│   │                    #  services, settle, spotter, termination, terrain, units, visibility)
+│   ├── opponents/       # Opponent protocol (__init__.py), smac_bot.py, and scripted/ (45 scripts)
+│   └── accel/           # Tier dispatch (__init__.py), classic.py, services.py, semantics.py,
+│                        # manifest.py, and rust_manifest.json
+└── adapters/            # One-way RL framework wrappers (strictly external to env/):
+    ├── __init__.py      # Zero-extra exports: PyMARLEnv, UnismacEnv, make_pymarl_env
+    ├── _common.py       # Shared optional-extra import guard & single-env/action helpers
+    ├── pymarl.py        # PyMARL / EPyMARL MultiAgentEnv wrapper (0 extra deps)
+    ├── gymnasium.py     # Lazy-imported Gymnasium 1.0+ Env & VectorEnv ([gymnasium])
+    └── pettingzoo.py    # Lazy-imported PettingZoo ParallelEnv ([pettingzoo])
 ```
 
 - **Shared backend helpers**: `unismac/backends/_common.py` (shared passive-owner resolution, capability derivation, and scenario validation used by both `pyref` and `zgame`).
@@ -114,7 +124,7 @@ Several short module names appear in both the environment layer (`unismac/env/`)
 
 ## 5. `accel` Routing & `rust_manifest.json` Hash Guard
 
-`unismac/env/accel/manifest.py` guards `accel='rust'` by verifying LF-normalized SHA-256 hashes of **47 semantic-layer source files** and **12 `VecEnv` methods** (`__init__`, `_generated_scenario`, `rng_stream`, `rng_streams`, `reset`, `step`, `_context`, `get_avail_actions`, `_obs_rng`, `get_obs`, `get_state`, `query_abilities`) against `unismac/env/accel/rust_manifest.json`.
+`unismac/env/accel/manifest.py` guards `accel='rust'` by verifying LF-normalized SHA-256 hashes of the semantic-layer source files (`SOURCES`) and core `VecEnv` kernel methods/private computation primitives (`FUNCTIONS`, including `__init__`, `reset`, `step`, and private `_obs`/`_state`/`_avail`/`_context`/`_ensure_spotter` helpers) against `unismac/env/accel/rust_manifest.json`.
 
 - **List all locked entries**: `python -m unismac.env.accel.manifest --list-locked`
 - **Check current status**: `python -m unismac.env.accel.manifest`
@@ -124,20 +134,21 @@ Several short module names appear in both the environment layer (`unismac/env/`)
 OMP_NUM_THREADS=1 python -m unismac.env.accel.manifest --write --jobs 6
 ```
 
-Changes inside `unismac/backends/pyref/`, `unismac/backends/zgame/`, `unismac/profiles.py`, `unismac/cli.py`, `unismac/env/__init__.py`, `unismac/env/single.py`, `unismac/env/accel/`, or new `VecEnv` helper methods do **not** affect `rust_manifest.json`.
+Changes inside `unismac/adapters/`, `unismac/backends/pyref/`, `unismac/backends/zgame/`, `unismac/profiles.py`, `unismac/cli.py`, `unismac/env/__init__.py`, `unismac/env/accel/`, or read-only `RuntimeView` helpers do **not** affect `rust_manifest.json`.
 
 ---
 
 ## 6. Test Suite Layout (`tests/`)
 
-The `unismac` test suite is organized into seven domain-aligned directories (plus shared fixtures in `tests/conftest.py` and helpers in `tests/_support/`):
+The `unismac` test suite is organized into **eight** domain-aligned directories (plus shared fixtures in `tests/conftest.py` and helpers in `tests/_support/`):
 
 | Directory | Coverage |
 | --- | --- |
-| `tests/api/` | Public API, CLI, profiles, boundary/import isolation |
+| `tests/api/` | Public API, CLI, profiles, static & runtime boundary/import isolation |
+| `tests/adapters/` | `PyMARLEnv`, missing-extra errors, Gymnasium `check_env` + 3-mode `VectorEnv`, PettingZoo `parallel_api_test` + `parallel_to_aec` `api_test` |
 | `tests/contract/` | Backend contract invariants across backends |
 | `tests/data/` | Assets, scenario registry, spawns, unit overrides |
-| `tests/env/` | `VecEnv`/`UnismacEnv`, presets, dual mode, mirror, seeds, opponents, `accel` parity |
+| `tests/env/` | Purified `VecEnv`, `StepBatch`, `RuntimeView`, AST zero-self-call checks, presets, dual mode, mirror, seeds, opponents, `accel` parity |
 | `tests/pyref/` | Pure-Python reference simulator subsystems & physics probes |
 | `tests/zgame/` | `zgame` backend & environment-layer Rust parity |
 | `tests/sc2/` | Optional live StarCraft II backend tests (`-m sc2`) |
@@ -148,10 +159,12 @@ The `unismac` test suite is organized into seven domain-aligned directories (plu
 
 - **Why is the PyPI package `zfoundry-zgame` while the Python import is `import zgame`?**
   The distribution name on PyPI is `zfoundry-zgame` to avoid naming collisions, while the top-level import package (`zgame`) and compiled extension module (`zgame._zgame`) remain short and ergonomic. `pip install unismac` pulls `zfoundry-zgame` automatically on mainstream platforms.
-- **Why does `make_env("smac-portable", "8m")` without `profile=` or `backend=` still request SC2?**
-  Preserving `backend="sc2"` as the bare default guarantees 100% backward compatibility with `make_env("smac", "3m")` and v0.1.0 callers. Pass `profile="sc2-native"` (recommended), `dual=True`, or `backend="auto"` to automatically select `zgame` when installed (falling back to `pyref`).
+- **Where did `make_env` and `UnismacEnv` move in `v0.2.0`?**
+  They moved out of the core kernel into `unismac.adapters.pymarl` as `make_pymarl_env(...) -> PyMARLEnv` (with `UnismacEnv = PyMARLEnv`). Core vectorized environments use `from unismac import make_vec_env`. See [MIGRATION.md](../MIGRATION.md) for the full before/after mapping.
+- **Why does `make_vec_env("smac-portable", "8m")` without `profile=` or `backend=` still request SC2?**
+  Preserving `backend="sc2"` as the bare default keeps upstream-parity calls like `make_vec_env("smac", "3m")` consistent across versions. Pass `profile="sc2-native"` (recommended), `dual=True`, or `backend="auto"` to automatically select `zgame` when installed (falling back to `pyref`).
 - **Why do finished slots remain frozen in `VecEnv` until `reset(done_ids)`?**
-  Keeping terminal states frozen avoids silent off-by-one observation overwrites on the terminal step and lets callers record final infos/rewards before resetting specific slots via `env.reset(np.flatnonzero(terminated).tolist())`. See [`examples/marl_loop_minimal.py`](../examples/marl_loop_minimal.py).
+  Keeping terminal states frozen avoids silent off-by-one observation overwrites on the terminal step and lets callers record final infos/rewards before resetting specific slots via `done = batch.terminated | batch.truncated; env.reset(np.flatnonzero(done).tolist())`. If you prefer automatic `NEXT_STEP` or `SAME_STEP` autoreset, use `make_gym_vec_env(...)` from `unismac.adapters.gymnasium`.
 - **Why does `smac-hard` default to `use_ability=False`?**
   This matches the published SMAC-Hard benchmark evaluation settings. Enable the V2 ability action segment explicitly with `overrides={"use_ability": True}` on live SC2.
 - **Why did `accel="auto"` emit a `RuntimeWarning` and fall back to `'services'`?**

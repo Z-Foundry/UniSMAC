@@ -1390,11 +1390,12 @@ def test_b04_all_24_world_fields_bitwise_in_process(preset: str, scenario: str) 
         assert ep.accel == 'rust' and ez.accel == 'rust'
         ep.reset()
         ez.reset()
-        assert len(dataclasses.fields(ep.world)) == 24
-        assert_same(ep.world, ez.world)
+        assert ep.runtime.world is not None and ez.runtime.world is not None
+        assert len(dataclasses.fields(ep.runtime.world)) == 24
+        assert_same(ep.runtime.world, ez.runtime.world)
         rng = np.random.default_rng(123)
         for _ in range(60):
-            avail = ep.get_avail_actions()
+            avail = ep.avail_actions()
             acts = np.zeros((4, avail.shape[1]), dtype=np.int64)
             for b in range(4):
                 for a in range(avail.shape[1]):
@@ -1402,7 +1403,8 @@ def test_b04_all_24_world_fields_bitwise_in_process(preset: str, scenario: str) 
                     acts[b, a] = int(valid[int(rng.integers(len(valid)))])
             ep.step(acts)
             ez.step(acts)
-            assert_same(ep.world, ez.world)
+            assert ep.runtime.world is not None and ez.runtime.world is not None
+            assert_same(ep.runtime.world, ez.runtime.world)
     finally:
         ep.close()
         ez.close()
@@ -1686,24 +1688,27 @@ def test_m13_b01_all_24_world_fields_bitwise_in_process(
         assert ep.accel == 'rust' and ez.accel == 'rust'
         ep.reset()
         ez.reset()
-        assert len(dataclasses.fields(ep.world)) == 24
-        assert_same(ep.world, ez.world)
+        assert ep.runtime.world is not None and ez.runtime.world is not None
+        assert len(dataclasses.fields(ep.runtime.world)) == 24
+        assert_same(ep.runtime.world, ez.runtime.world)
         rng = np.random.default_rng(2026)
         saw_hidden = False
         for _ in range(85):
-            if ep.done.all():
+            if ep.runtime.done().all():
                 ep.reset()
                 ez.reset()
-                assert_same(ep.world, ez.world)
-            avail = ep.get_avail_actions()
-            np.testing.assert_array_equal(avail, ez.get_avail_actions())
+                assert ep.runtime.world is not None and ez.runtime.world is not None
+                assert_same(ep.runtime.world, ez.runtime.world)
+            avail = ep.avail_actions()
+            np.testing.assert_array_equal(avail, ez.avail_actions())
             acts = _m13_sample_actions(rng, avail)
             ep.step(acts)
             ez.step(acts)
-            assert_same(ep.world, ez.world)
-            alive = ez.world.alive
-            if (~ez.world.visible[:, :, 0] & alive).any() or (
-                ~ez.world.visible[:, :, 1] & alive
+            assert ep.runtime.world is not None and ez.runtime.world is not None
+            assert_same(ep.runtime.world, ez.runtime.world)
+            alive = ez.runtime.world.alive
+            if (~ez.runtime.world.visible[:, :, 0] & alive).any() or (
+                ~ez.runtime.world.visible[:, :, 1] & alive
             ).any():
                 saw_hidden = True
         if expect_fog:
@@ -1740,18 +1745,21 @@ def test_m13_b01_variants_and_aligned_v5_bitwise(
         assert ep.accel == 'rust' and ez.accel == 'rust'
         ep.reset()
         ez.reset()
-        assert_same(ep.world, ez.world)
+        assert ep.runtime.world is not None and ez.runtime.world is not None
+        assert_same(ep.runtime.world, ez.runtime.world)
         rng = np.random.default_rng(77)
         for _ in range(85):
-            if ep.done.all():
+            if ep.runtime.done().all():
                 ep.reset()
                 ez.reset()
-                assert_same(ep.world, ez.world)
-            avail = ep.get_avail_actions()
+                assert ep.runtime.world is not None and ez.runtime.world is not None
+                assert_same(ep.runtime.world, ez.runtime.world)
+            avail = ep.avail_actions()
             acts = _m13_sample_actions(rng, avail)
             ep.step(acts)
             ez.step(acts)
-            assert_same(ep.world, ez.world)
+            assert ep.runtime.world is not None and ez.runtime.world is not None
+            assert_same(ep.runtime.world, ez.runtime.world)
     finally:
         ep.close()
         ez.close()
@@ -1870,30 +1878,38 @@ def test_m13_b03_active_maps_bitwise_and_effect(
         ep.reset()
         ez.reset()
         ez_off.reset()
-        assert_same(ep.world, ez.world)
+        assert ep.runtime.world is not None and ez.runtime.world is not None
+        assert_same(ep.runtime.world, ez.runtime.world)
         rng = np.random.default_rng(314)
         diverged = False
         for _ in range(85):
-            if ep.done.all():
+            if ep.runtime.done().all():
                 ep.reset()
                 ez.reset()
-                assert_same(ep.world, ez.world)
-            avail = ep.get_avail_actions()
-            np.testing.assert_array_equal(avail, ez.get_avail_actions())
+                assert ep.runtime.world is not None and ez.runtime.world is not None
+                assert_same(ep.runtime.world, ez.runtime.world)
+            avail = ep.avail_actions()
+            np.testing.assert_array_equal(avail, ez.avail_actions())
             acts = _m13_sample_actions(rng, avail)
             ep.step(acts)
             ez.step(acts)
-            assert_same(ep.world, ez.world)
+            assert ep.runtime.world is not None and ez.runtime.world is not None
+            assert_same(ep.runtime.world, ez.runtime.world)
             if not diverged:
-                if ez_off.done.all():
+                if ez_off.runtime.done().all():
                     ez_off.reset()
-                av_off = ez_off.get_avail_actions()
+                av_off = ez_off.avail_actions()
                 if np.array_equal(av_off, avail):
                     ez_off.step(acts)
+                    assert ez_off.runtime.world is not None
                     if not (
-                        np.array_equal(ez.world.x, ez_off.world.x, equal_nan=True)
-                        and np.array_equal(ez.world.health, ez_off.world.health, equal_nan=True)
-                        and np.array_equal(ez.world.shield, ez_off.world.shield, equal_nan=True)
+                        np.array_equal(ez.runtime.world.x, ez_off.runtime.world.x, equal_nan=True)
+                        and np.array_equal(
+                            ez.runtime.world.health, ez_off.runtime.world.health, equal_nan=True
+                        )
+                        and np.array_equal(
+                            ez.runtime.world.shield, ez_off.runtime.world.shield, equal_nan=True
+                        )
                     ):
                         diverged = True
                 else:
@@ -1932,23 +1948,38 @@ def test_m13_b03_gated_maps_zero_diff(preset: str, scenario: str) -> None:
         ep.reset()
         ez_on.reset()
         ez_off.reset()
-        assert_same(ep.world, ez_on.world)
-        assert_same(ez_on.world, ez_off.world)
+        assert (
+            ep.runtime.world is not None
+            and ez_on.runtime.world is not None
+            and ez_off.runtime.world is not None
+        )
+        assert_same(ep.runtime.world, ez_on.runtime.world)
+        assert_same(ez_on.runtime.world, ez_off.runtime.world)
         rng = np.random.default_rng(99)
         for _ in range(85):
-            if ep.done.all():
+            if ep.runtime.done().all():
                 ep.reset()
                 ez_on.reset()
                 ez_off.reset()
-                assert_same(ep.world, ez_on.world)
-                assert_same(ez_on.world, ez_off.world)
-            avail = ep.get_avail_actions()
+                assert (
+                    ep.runtime.world is not None
+                    and ez_on.runtime.world is not None
+                    and ez_off.runtime.world is not None
+                )
+                assert_same(ep.runtime.world, ez_on.runtime.world)
+                assert_same(ez_on.runtime.world, ez_off.runtime.world)
+            avail = ep.avail_actions()
             acts = _m13_sample_actions(rng, avail)
             ep.step(acts)
             ez_on.step(acts)
             ez_off.step(acts)
-            assert_same(ep.world, ez_on.world)
-            assert_same(ez_on.world, ez_off.world)
+            assert (
+                ep.runtime.world is not None
+                and ez_on.runtime.world is not None
+                and ez_off.runtime.world is not None
+            )
+            assert_same(ep.runtime.world, ez_on.runtime.world)
+            assert_same(ez_on.runtime.world, ez_off.runtime.world)
     finally:
         ep.close()
         ez_on.close()

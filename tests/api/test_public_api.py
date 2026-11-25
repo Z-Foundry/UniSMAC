@@ -14,7 +14,7 @@ import pytest
 import unismac
 import unismac.profiles as profiles
 from unismac.contract import CapabilityError
-from unismac.env import VecEnv, make_vec_env
+from unismac.env import RuntimeView, StepBatch, VecEnv, make_vec_env
 from unismac.env import accel as accel_mod
 from unismac.profiles import merge_overrides, profile_overrides
 
@@ -47,11 +47,22 @@ def _require_zgame() -> Any:
 
 def test_package_surface() -> None:
     assert unismac.make_vec_env is make_vec_env and unismac.VecEnv is VecEnv
+    assert unismac.StepBatch is StepBatch
     assert re.fullmatch(r'\d+\.\d+\.\d+', unismac.__version__)
     assert re.fullmatch(r'\d+\.\d+', unismac.CONTRACT_VERSION)
     assert issubclass(CapabilityError, Exception)
     params = inspect.signature(make_vec_env).parameters
-    for name in ('backend', 'batch_size', 'seed', 'seeds', 'overrides', 'zgame_threads', 'accel'):
+    for name in (
+        'backend',
+        'profile',
+        'dual',
+        'batch_size',
+        'seed',
+        'seeds',
+        'overrides',
+        'zgame_threads',
+        'accel',
+    ):
         assert params[name].kind is inspect.Parameter.KEYWORD_ONLY, name
     assert params['accel'].default == 'auto'
     reset = inspect.signature(VecEnv.reset).parameters
@@ -59,22 +70,27 @@ def test_package_surface() -> None:
     assert reset['env_ids'].default is None
     for name in ('opponents', 'seeds'):
         assert reset[name].kind is inspect.Parameter.KEYWORD_ONLY and reset[name].default is None
+    for name in ('step', 'obs', 'avail_actions', 'state', 'alive', 'capabilities', 'close'):
+        assert callable(getattr(VecEnv, name)), name
+    assert isinstance(VecEnv.runtime, property)
+    for name in ('world', 'backend', 'healers', 'env_seeds'):
+        assert isinstance(getattr(RuntimeView, name), property), name
     for name in (
-        'step',
-        'get_obs',
-        'get_avail_actions',
-        'get_state',
-        'close',
-        'alive',
+        'frame',
         'game_loop',
-        'close_backend',
+        'done',
+        'episode_steps',
+        'episode_count',
+        'reset_count',
+        'max_rewards',
+        'counters',
         'opponent_names',
         'opponent_errors',
+        'last_scenarios',
         'rng_stream',
+        'close_backend',
     ):
-        assert callable(getattr(VecEnv, name)), name
-    for name in ('world', 'frame', 'env_seeds'):
-        assert isinstance(getattr(VecEnv, name), property), name
+        assert callable(getattr(RuntimeView, name)), name
     with pytest.raises(CapabilityError):
         make_vec_env('smac-portable', '3m', backend='sc2', batch_size=2)
 
@@ -201,7 +217,7 @@ def test_dual_surface() -> None:
     step = inspect.signature(VecEnv.step).parameters
     assert list(step) == ['self', 'actions', 'enemy_actions']
     assert step['enemy_actions'].default is None
-    for name in ('get_obs', 'get_state', 'get_avail_actions', 'alive'):
+    for name in ('obs', 'state', 'avail_actions', 'alive'):
         side = inspect.signature(getattr(VecEnv, name)).parameters['side']
         assert side.default == 1, name
     for name in (
@@ -209,9 +225,10 @@ def test_dual_surface() -> None:
         'state_layout_for',
         'n_agents_for',
         'n_actions_for',
-        'frame_for',
     ):
         assert list(inspect.signature(getattr(VecEnv, name)).parameters) == ['self', 'side'], name
+    frame_params = inspect.signature(RuntimeView.frame).parameters
+    assert list(frame_params) == ['self', 'side'] and frame_params['side'].default == 1
     assert profiles.STANDARD_SYMMETRIC_PROFILE == 'sc2-symmetric'
     assert profiles.STANDARD_SYMMETRIC_PROFILE in profiles.PROFILES
     for name in (
@@ -228,7 +245,7 @@ def test_dual_surface() -> None:
 
 
 def _acts(env: VecEnv, rng: np.random.Generator) -> np.ndarray:
-    avail = env.get_avail_actions()
+    avail = env.avail_actions()
     return np.array([[int(rng.choice(np.flatnonzero(r))) for r in rows] for rows in avail])
 
 
@@ -249,49 +266,57 @@ def test_vec_env_surface(backend: str) -> None:
     assert (lay.n_enemies, lay.n_allies) == (env.n_enemies, a - 1)
     size = len(lay.move) + 3 * len(lay.enemy) + 2 * len(lay.ally) + len(lay.own) + len(lay.timestep)
     assert lay.size == size
-    obs, state = env.reset()
+    assert env.reset() is None
+    obs, state = env.obs(), env.state()
     assert obs.dtype == np.float32 and obs.shape == (b, a, lay.size)
     assert state.dtype == np.float32 and state.shape == (b, env.state_layout.size)
-    np.testing.assert_array_equal(env.get_obs(), obs)
-    np.testing.assert_array_equal(env.get_state(), state)
-    avail = env.get_avail_actions()
+    avail = env.avail_actions()
     assert avail.dtype == np.int64 and avail.shape == (b, a, k)
 
-    health = env.frame.allies.health
+    health = env.runtime.frame().allies.health
     assert health.dtype == np.float64 and health.shape == (b, a)
     alive = env.alive()
     assert alive.dtype == np.bool_ and alive.all()
     np.testing.assert_array_equal(alive, health > 0)
-    loops = env.game_loop()
+    loops = env.runtime.game_loop()
     assert loops.dtype == np.int64 and loops.shape == (b,)
-    np.testing.assert_array_equal(loops, env.world.game_loop)
+    assert env.runtime.world is not None
+    np.testing.assert_array_equal(loops, env.runtime.world.game_loop)
     loops[:] = -1  # fresh array copy
-    assert (env.world.game_loop >= 0).all()
+    assert (env.runtime.world.game_loop >= 0).all()
 
     rng = np.random.default_rng(0)
-    start = env.game_loop()
-    reward, term, infos = env.step(_acts(env, rng))
-    assert reward.dtype == np.float64 and reward.shape == (b,)
-    assert term.dtype == np.bool_ and term.shape == (b,)
-    assert isinstance(infos, list) and len(infos) == b
-    assert {'battle_won', 'dead_allies', 'dead_enemies'} <= set(infos[0])
-    np.testing.assert_array_equal(env.game_loop(), start + 8)
+    start = env.runtime.game_loop()
+    step = env.step(_acts(env, rng))
+    assert isinstance(step, StepBatch)
+    assert step.reward.dtype == np.float64 and step.reward.shape == (b,)
+    assert step.terminated.dtype == np.bool_ and step.terminated.shape == (b,)
+    assert step.truncated.dtype == np.bool_ and step.truncated.shape == (b,)
+    assert step.reward_enemy is None
+    assert isinstance(step.infos, list) and len(step.infos) == b
+    assert {'battle_won', 'dead_allies', 'dead_enemies'} <= set(step.infos[0])
+    np.testing.assert_array_equal(env.runtime.game_loop(), start + 8)
     for _ in range(80):
-        reward, term, infos = env.step(_acts(env, rng))
-        np.testing.assert_array_equal(env.alive(), env.frame.allies.health > 0)
-        for i in np.flatnonzero(term):
-            assert infos[i] == {} or infos[i]['dead_allies'] == int((~env.alive()[i]).sum())
-        if term.any():
-            env.reset(np.flatnonzero(term).tolist())
-    assert callable(env.backend.close)
+        step = env.step(_acts(env, rng))
+        done_now = step.terminated | step.truncated
+        np.testing.assert_array_equal(env.alive(), env.runtime.frame().allies.health > 0)
+        for i in np.flatnonzero(done_now):
+            assert step.infos[i] == {} or step.infos[i]['dead_allies'] == int(
+                (~env.alive()[i]).sum()
+            )
+        if done_now.any():
+            env.reset(np.flatnonzero(done_now).tolist())
+    assert callable(env.runtime.backend.close)
 
     # close_backend shuts down the backend while preserving VecEnv state until the next reset
-    last = env.game_loop()
-    env.close_backend()
-    reward, term, infos = env.step(env.get_avail_actions().argmax(-1))
-    assert term.all() and not reward.any() and infos == [{}] * b
-    np.testing.assert_array_equal(env.game_loop(), last)
-    obs, _ = env.reset()
+    last = env.runtime.game_loop()
+    env.runtime.close_backend()
+    step = env.step(env.avail_actions().argmax(-1))
+    assert not step.terminated.any() and not step.truncated.any() and env.runtime.done().all()
+    assert not step.reward.any() and step.infos == [{}] * b
+    np.testing.assert_array_equal(env.runtime.game_loop(), last)
+    env.reset()
+    obs = env.obs()
     assert obs.shape == (b, a, lay.size) and env.alive().all()
     env.step(_acts(env, rng))
     env.close()
@@ -305,11 +330,11 @@ def test_opponent_names_and_errors(accel: Literal['auto', 'services']) -> None:
         'smac-hard-portable', '2s3z', backend='pyref', batch_size=2, seed=1, accel=accel
     )
     env.reset()
-    opp: Any = env.opponent
+    opp: Any = env._opponent
     assert isinstance(opp.names, dict) and isinstance(opp.errors, dict)
-    assert env.opponent_names() == [opp.names[0], opp.names[1]]
-    assert all(n in opp.pool for n in env.opponent_names())
-    errs = env.opponent_errors()
+    assert env.runtime.opponent_names() == [opp.names[0], opp.names[1]]
+    assert all(n in opp.pool for n in env.runtime.opponent_names())
+    errs = env.runtime.opponent_errors()
     assert errs.dtype == np.int64 and errs.tolist() == [0, 0]
     if env.accel == 'rust':
         assert opp.scripts == {}
@@ -321,13 +346,13 @@ def test_opponent_names_and_errors(accel: Literal['auto', 'services']) -> None:
     opp.scripts[1].script = boom
     with pytest.warns(RuntimeWarning):
         env.step(_acts(env, np.random.default_rng(0)))
-    assert opp.errors == {1: 1} and env.opponent_errors().tolist() == [0, 1]
+    assert opp.errors == {1: 1} and env.runtime.opponent_errors().tolist() == [0, 1]
 
     plain = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=2, seed=1)
-    assert plain.opponent_names() == [None, None]
+    assert plain.runtime.opponent_names() == [None, None]
     plain.reset()
-    assert plain.opponent_names() == [None, None]
-    assert plain.opponent_errors().tolist() == [0, 0]
+    assert plain.runtime.opponent_names() == [None, None]
+    assert plain.runtime.opponent_errors().tolist() == [0, 0]
 
 
 def test_sc2_backend_session_surface() -> None:

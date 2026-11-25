@@ -75,28 +75,41 @@ def _digest(
             h.update(str((a.dtype.str, a.shape)).encode())
             h.update(a.tobytes())
 
-    def put_reset() -> None:
-        put(env.get_obs(), env.get_state(), env.get_avail_actions())
-        names = getattr(env.opponent, 'names', None)
+    def put_reset(reset_ids: list[int]) -> None:
+        put(env.obs(), env.state(), env.avail_actions())
+        names = getattr(env._opponent, 'names', None)
         if names is not None:
             h.update(json.dumps(sorted(names.items())).encode())
-        h.update(repr(sorted(env.last_scenarios.items())).encode())
+        scenarios = env.runtime.last_scenarios()
+        h.update(repr([(b, scenarios[b]) for b in sorted(reset_ids)]).encode())
 
     env.reset()
-    put_reset()
+    put_reset(list(range(batch)))
     for t in range(n_steps):
-        avail = env.get_avail_actions()
+        avail = env.avail_actions()
         acts = np.array([[act_rng.choice(np.flatnonzero(r)) for r in rows] for rows in avail])
-        reward, term, infos = env.step(acts)
-        put(reward, term, env.get_obs(), env.get_state(), env.get_avail_actions())
-        h.update(json.dumps(infos, sort_keys=True).encode())
+        step = env.step(acts)
+        term = step.terminated | step.truncated
+        put(step.reward, term, env.obs(), env.state(), env.avail_actions())
+        h.update(json.dumps(step.infos, sort_keys=True).encode())
         ids = set(np.flatnonzero(term).tolist())
         if t % 11 == 10:
             ids.add(t % batch)
         if ids:
-            env.reset(sorted(ids))
-            put_reset()
-    h.update(json.dumps(env.get_stats(), sort_keys=True).encode())
+            order = sorted(ids)
+            env.reset(order)
+            put_reset(order)
+    c = env.runtime.counters()
+    won, games, timeouts = c['battles_won'], c['battles_game'], c['timeouts']
+    stats = {
+        'battles_won': won,
+        'battles_game': games,
+        'battles_draw': timeouts,
+        'win_rate': won / games if games else 0.0,
+        'timeouts': timeouts,
+        'restarts': 0,
+    }
+    h.update(json.dumps(stats, sort_keys=True).encode())
     env.close()
     return h.hexdigest()
 

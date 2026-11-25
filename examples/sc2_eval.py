@@ -1,9 +1,9 @@
 """One-line backend switching example (`zgame` / `pyref` / live `sc2`).
 
-Uses `make_env(..., batch_size=1)` to obtain the PyMARL/EPyMARL-compatible
-`UnismacEnv` interface and runs a simple greedy baseline on any backend.
-Pass `--native-smac` to evaluate against the native 23-map SMAC trigger
-opponent on `zgame` or `pyref`.
+Uses `make_pymarl_env(...)` from `unismac.adapters.pymarl` to obtain the
+PyMARL/EPyMARL-compatible `PyMARLEnv` (`MultiAgentEnv`) interface and runs a
+simple greedy baseline on any backend. Pass `--native-smac` to evaluate against
+the native 23-map SMAC trigger opponent on `zgame` or `pyref`.
 
 Run:
     python examples/sc2_eval.py --backend zgame --scenario 8m --episodes 5
@@ -19,7 +19,8 @@ import sys
 
 import numpy as np
 
-from unismac import STANDARD_PROFILE, UnismacEnv, make_env
+from unismac import STANDARD_PROFILE
+from unismac.adapters.pymarl import make_pymarl_env
 from unismac.env import native_smac_overrides
 
 
@@ -69,12 +70,11 @@ def main() -> int:
     )
 
     try:
-        ctx = make_env(
+        ctx = make_pymarl_env(
             args.preset,
             args.scenario,
             backend=args.backend,
             profile=profile,
-            batch_size=1,
             seed=args.seed,
             overrides=overrides,
         )
@@ -90,7 +90,6 @@ def main() -> int:
             print(f"Failed to initialize backend '{args.backend}': {exc}", file=sys.stderr)
         return 1
 
-    assert isinstance(ctx, UnismacEnv)
     with ctx as env:
         info = env.get_env_info()
         print(f'Environment     : {env!r}')

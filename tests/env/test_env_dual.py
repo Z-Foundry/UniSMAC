@@ -13,8 +13,9 @@ from typing import Any
 import numpy as np
 import pytest
 
+from unismac.adapters.pymarl import make_pymarl_env
 from unismac.contract import CapabilityError
-from unismac.env import build_config, make_env, make_vec_env
+from unismac.env import build_config, make_vec_env
 from unismac.env.config import RewardConfig
 from unismac.env.dual import check_options, seat_catalog, symmetric_options
 from unismac.env.semantics import termination as term
@@ -63,15 +64,16 @@ def test_sym_profiles() -> None:
 
 def test_non_dual_rejects_side2() -> None:
     env = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=2, seed=0)
-    obs, state = env.reset()
+    env.reset()
+    obs, state = env.obs(), env.state()
     assert not env.dual and env._p2 is None
-    assert np.array_equal(env.get_obs(1), obs) and np.array_equal(env.get_state(1), state)
+    assert np.array_equal(env.obs(1), obs) and np.array_equal(env.state(1), state)
     assert env.n_agents_for(1) == 3 and env.n_actions_for(1) == env.n_actions
-    for call in (env.get_obs, env.get_state, env.get_avail_actions, env.alive, env.frame_for):
+    for call in (env.obs, env.state, env.avail_actions, env.alive, env.runtime.frame):
         with pytest.raises(ValueError, match='(?i)two-sided'):
             call(2)
     with pytest.raises(ValueError, match='(?i)side.*1.*2'):
-        env.get_obs(3)
+        env.obs(3)
     acts = np.zeros((2, 3), np.int64) + 1
     with pytest.raises(ValueError, match='(?i)enemy_actions.*two-sided'):
         env.step(acts, acts)
@@ -79,20 +81,21 @@ def test_non_dual_rejects_side2() -> None:
 
 def test_dual_interface() -> None:
     env = dual_env('smac-portable', '5m_vs_6m', seed=3)
-    obs, state = env.reset()
+    env.reset()
     assert env.dual and env.n_agents_for(1) == 5 and env.n_agents_for(2) == 6
     assert (env.n_actions_for(1), env.n_actions_for(2)) == (6 + 6, 6 + 5)
-    assert env.get_obs(2).shape == (2, 6, env.obs_layout_for(2).size)
-    assert env.get_state(2).shape == (2, env.state_layout_for(2).size)
-    assert env.get_avail_actions(2).shape == (2, 6, 11)
+    assert env.obs(2).shape == (2, 6, env.obs_layout_for(2).size)
+    assert env.state(2).shape == (2, env.state_layout_for(2).size)
+    assert env.avail_actions(2).shape == (2, 6, 11)
     # Player 2 perspective: allies are Player 2's units
-    world, f2 = env.world, env.frame_for(2)
+    world, f2 = env.runtime.world, env.runtime.frame(2)
+    assert world is not None
     rows = np.arange(2)[:, None]
     assert (world.owner[rows, f2.allies.slot] == 2).all()
     assert (world.owner[rows, f2.enemies.slot] == 1).all()
     assert env.alive(2).all() and env.alive().all()
-    assert env.opponent_names() == [None, None]
-    assert env.opponent_errors().tolist() == [0, 0]
+    assert env.runtime.opponent_names() == [None, None]
+    assert env.runtime.opponent_errors().tolist() == [0, 0]
     with pytest.raises(ValueError, match='cannot select per-env scripts'):
         env.reset(opponents=['x', None])
     env.reset(opponents=[None, None])
@@ -104,8 +107,9 @@ def test_dual_interface() -> None:
     bad = np.zeros((2, 6), np.int64)  # live units cannot take no-op
     with pytest.raises(ValueError, match='^enemy_actions:'):
         env.step(stop, bad)
-    r, d, infos = env.step(stop, np.ones((2, 6), np.int64))
-    for info in infos:
+    step = env.step(stop, np.ones((2, 6), np.int64))
+    assert step.reward_enemy is not None and step.reward_enemy.shape == (2,)
+    for info in step.infos:
         assert set(info) == {
             'battle_won',
             'dead_allies',
@@ -113,8 +117,8 @@ def test_dual_interface() -> None:
             'battle_lost',
             'reward_enemy',
         }
-    # UnismacEnv: same two-sided arguments
-    one = make_env('smac-portable', '3m', backend='pyref', overrides=dual_over(), seed=1)
+    # PyMARLEnv: same two-sided arguments
+    one = make_pymarl_env('smac-portable', '3m', backend='pyref', overrides=dual_over(), seed=1)
     one.reset()
     assert len(one.get_obs(2)) == 3 and len(one.get_avail_actions(2)) == 3
     _, _, info = one.step([1, 1, 1], [1, 1, 1])
@@ -131,7 +135,7 @@ def test_last_action_is_per_side() -> None:
         lay = env.state_layout_for(side)
         assert lay.last_action and not lay.timestep
         k = env.n_actions_for(side)
-        tail = env.get_state(side)[0, lay.size - lay.n_agents * k :]
+        tail = env.state(side)[0, lay.size - lay.n_agents * k :]
         assert tail.reshape(lay.n_agents, k).argmax(-1).tolist() == acts
         assert tail.sum() == lay.n_agents
 
@@ -231,7 +235,7 @@ def test_seat_catalog_for_asymmetric_maps() -> None:
     env.reset()
     assert env._p2 is not None
     assert env._p2.catalog.roles == (ZEALOT,) and env.catalog.roles == (STALKER,)
-    tab = env._p2.require()[1]
+    tab = env._p2._require()[1]
     assert tab.shield_max[0].tolist() == [50.0] * 5 and tab.cooldown_max[0].tolist() == [22.0] * 5
     # Symmetric map keeps the same catalog
     env = dual_env('smac-portable', 'MMM', batch=1, seed=0)
@@ -327,22 +331,28 @@ def test_reward_enemy_by_side() -> None:
     env = dual_env('smac-portable', '3m', batch=1, seed=5)
     env.reset()
     assert env._p2 is not None
-    assert env._p2.max_rewards[0] == env.max_rewards[0]  # both sides have 3 Marines
+    assert env._p2.max_rewards[0] == env.runtime.max_rewards()[0]  # both sides have 3 Marines
     rng = np.random.default_rng(1)
     tot1 = tot2 = 0.0
+    done = np.zeros(1, bool)
+    infos: list[dict[str, Any]] = [{}]
     for _ in range(200):
-        a1 = random_actions(rng, env.get_avail_actions())
+        a1 = random_actions(rng, env.avail_actions())
         # Player 2: attack first available target, else random
-        av2 = env.get_avail_actions(2)
+        av2 = env.avail_actions(2)
         a2 = random_actions(rng, av2)
         hit = av2[..., 6:].argmax(-1)
         a2 = np.where(av2[..., 6:].any(-1), 6 + hit, a2)
-        r, d, infos = env.step(a1, a2)
-        tot1 += float(r[0])
-        tot2 += infos[0]['reward_enemy']
-        if d[0]:
+        step = env.step(a1, a2)
+        assert step.reward_enemy is not None
+        tot1 += float(step.reward[0])
+        tot2 += float(step.reward_enemy[0])
+        assert step.infos[0]['reward_enemy'] == float(step.reward_enemy[0])
+        done = step.terminated | step.truncated
+        infos = step.infos
+        if done[0]:
             break
-    assert d[0]
+    assert done[0]
     if infos[0]['battle_lost']:
         assert not infos[0]['battle_won'] and tot2 > tot1
     assert tot2 > 0
@@ -369,19 +379,26 @@ def test_per_env_seeds_and_partial_reset(preset: str, scenario: str) -> None:
     def check(where: str) -> None:
         for b, e in enumerate(small):
             for side in (1, 2):
-                for get in ('get_obs', 'get_state', 'get_avail_actions'):
+                for get in ('obs', 'state', 'avail_actions'):
                     x = getattr(big, get)(side)[b]
                     y = getattr(e, get)(side)[0]
                     assert x.tobytes() == y.tobytes(), f'{where} env {b} side={side} {get}'
 
     check('reset')
     for t in range(80):
-        a1 = random_actions(rng, big.get_avail_actions())
-        a2 = random_actions(rng, big.get_avail_actions(2))
-        r, d, infos = big.step(a1, a2)
+        a1 = random_actions(rng, big.avail_actions())
+        a2 = random_actions(rng, big.avail_actions(2))
+        step = big.step(a1, a2)
+        d = step.terminated | step.truncated
         for b, e in enumerate(small):
-            rb, db, ib = e.step(a1[b : b + 1], a2[b : b + 1])
-            assert (r[b], d[b]) == (rb[0], db[0]) and infos[b] == ib[0], f'step {t} env {b}'
+            sb = e.step(a1[b : b + 1], a2[b : b + 1])
+            assert (step.reward[b], step.terminated[b], step.truncated[b]) == (
+                sb.reward[0],
+                sb.terminated[0],
+                sb.truncated[0],
+            ) and step.infos[b] == sb.infos[0], f'step {t} env {b}'
+            assert step.reward_enemy is not None and sb.reward_enemy is not None
+            assert step.reward_enemy[b] == sb.reward_enemy[0]
         check(f'step {t}')
         ids = [b for b in range(2) if d[b]]
         if t == 30:
@@ -404,7 +421,7 @@ def test_reseed_resets_side2_state() -> None:
     env.reset([1], seeds=[7])
     one = dual_env('smacv2-portable', '10gen_protoss', batch=1, seeds=[7])
     one.reset()
-    assert env.get_obs(2)[1].tobytes() == one.get_obs(2)[0].tobytes()
+    assert env.obs(2)[1].tobytes() == one.obs(2)[0].tobytes()
     assert env._p2 is not None and one._p2 is not None
     assert env._p2.max_rewards[1] == one._p2.max_rewards[0]
 
@@ -412,7 +429,7 @@ def test_reseed_resets_side2_state() -> None:
 def test_dataclass_contract_unchanged() -> None:
     """side=1 and one-sided components are unchanged: UnitView defaults to owners=(1, 2)."""
     env = make_vec_env('smac-portable', '3m', backend='pyref', batch_size=1, seed=0)
-    assert env.view.owners == (1, 2)
+    assert env._view.owners == (1, 2)
     assert not any(f.name == 'dual' for f in dataclasses.fields(env.config.opponent))
 
 
@@ -421,7 +438,7 @@ def test_dataclass_contract_unchanged() -> None:
 
 def _aggressive(env: Any, side: int, rng: np.random.Generator) -> np.ndarray:
     """Attack/heal a random valid target when available, else march toward the opponent."""
-    av = env.get_avail_actions(side)
+    av = env.avail_actions(side)
     tgt = av[..., 6:]
     pick = 6 + (rng.random(tgt.shape) * tgt).argmax(-1)
     move = 4 if side == 1 else 5
@@ -453,16 +470,21 @@ def test_mmm_termination_step_by_step(backend: str) -> None:
     rng = np.random.default_rng(3)
     seen: dict[str, int] = {'won': 0, 'lost': 0, 'draw': 0, 'timeout': 0, 'medivac_left': 0}
     for _ in range(600):
-        active = ~env.done
-        _, done, infos = env.step(_aggressive(env, 1, rng), _aggressive(env, 2, rng))
-        w = env.world
+        active = ~env.runtime.done()
+        step = env.step(_aggressive(env, 1, rng), _aggressive(env, 2, rng))
+        done = step.terminated | step.truncated
+        w = env.runtime.world
+        assert w is not None
+        ep_steps = env.runtime.episode_steps()
         for b in np.flatnonzero(active):
             fighter = w.alive[b] & (w.unit_type[b] != MEDIVAC)
             out1 = not (fighter & (w.owner[b] == 1)).any()
             out2 = not (fighter & (w.owner[b] == 2)).any()
-            timeout = env.episode_steps[b] >= env.episode_limit
-            info = infos[b]
+            timeout = ep_steps[b] >= env.episode_limit
+            info = step.infos[b]
             assert bool(done[b]) == (out1 or out2 or timeout), b
+            assert bool(step.terminated[b]) == (out1 or out2), b
+            assert bool(step.truncated[b]) == (timeout and not (out1 or out2)), b
             assert info['battle_won'] == (out2 and not out1), b
             assert info['battle_lost'] == (out1 and not out2), b
             if done[b]:

@@ -18,6 +18,12 @@ published package metadata.
 uv sync --group dev
 ```
 
+To include optional Gymnasium and PettingZoo adapter test dependencies:
+
+```bash
+uv sync --group dev --group adapters
+```
+
 For pure-Python development without installing the compiled `zfoundry-zgame` wheel:
 
 ```bash
@@ -51,6 +57,7 @@ make typecheck       # pyrefly check
 make test-fast       # fast unit suite (skips sc2, slow, and heavy AVX-512 parity)
 make test            # full default suite (matches CI: not sc2 and not slow)
 make test-zgame      # zgame backend & accel tier tests
+make test-adapters   # PyMARL, Gymnasium, and PettingZoo adapter contract tests
 make test-slow       # full E1 pyref grid (-m slow)
 make manifest-check  # verify env/accel/rust_manifest.json matches current sources
 make manifest-locked # print all files and VecEnv methods locked by rust_manifest.json
@@ -63,12 +70,13 @@ Adjust worker concurrency via `JOBS=4` (for example `make test JOBS=6`) and the 
 
 ## 3. Test Suite Layout and Markers
 
-`tests/` is organized into seven layers plus shared helpers:
+`tests/` is organized into eight layers plus shared helpers:
 
-- `tests/api/` -- public API surface (`test_public_api.py`) and dependency boundary (`test_boundary.py`)
+- `tests/api/` -- public API surface (`test_public_api.py`), architecture invariants, and dependency boundaries (`test_boundary.py`)
+- `tests/adapters/` -- PyMARL (`PyMARLEnv`), Gymnasium (`check_env`, `AutoresetMode`), PettingZoo (`parallel_api_test`, `parallel_to_aec`), and missing-extra diagnostics
 - `tests/contract/` -- backend contract types and conformance checks
 - `tests/data/` -- static assets, presets, scenarios, unit overrides, and SMAC bot helpers
-- `tests/env/` -- `VecEnv` / `UnismacEnv`, RNG, generators, opponents, dual/mirror mode, and 3-tier `accel`
+- `tests/env/` -- purified `VecEnv` / `StepBatch` / `RuntimeView`, RNG, generators, opponents, dual/mirror mode, and 3-tier `accel`
 - `tests/pyref/` -- pure-Python reference simulation engine unit tests
 - `tests/zgame/` -- `zgame` Rust backend step-by-step parity with `pyref`
 - `tests/sc2/` -- StarCraft II backend tests (opt-in via `-m sc2`)
@@ -79,11 +87,12 @@ Pytest markers:
 - `sc2` -- requires a local StarCraft II installation (`$SC2PATH`)
 - `slow` -- full cross-tier E1 grid on `pyref` (`pytest -m slow`)
 - `parity` -- heavy cross-backend and AVX-512-disabled subprocess bitwise parity tests
+- `adapters` -- tests requiring optional `gymnasium` or `pettingzoo` extras
 
 ## 4. Working with `rust_manifest.json`
 
-`unismac/env/accel/rust_manifest.json` locks 47 semantic-layer source files and 12 `VecEnv`
-methods whose behavior is mirrored bitwise in `zgame._zgame.env` (`accel='rust'`).
+`unismac/env/accel/rust_manifest.json` locks 47 semantic-layer source files and the core
+`VecEnv` methods whose behavior is mirrored bitwise in `zgame._zgame.env` (`accel='rust'`).
 
 Before editing files under `unismac/env/` or `unismac/presets/`, check whether a file is locked:
 
@@ -91,9 +100,8 @@ Before editing files under `unismac/env/` or `unismac/presets/`, check whether a
 python -m unismac.env.accel.manifest --list-locked
 ```
 
-- Editing **unlocked** files (for example `backends/`, `cli.py`, `profiles.py`, `scenarios/`,
-  `env/core.py` outside the 12 locked methods, `env/single.py`, `env/accel/manifest.py`) requires
-  **no** manifest refresh.
+- Editing **unlocked** files (for example `adapters/`, `backends/`, `cli.py`, `profiles.py`,
+  `scenarios/`, `env/accel/manifest.py`) requires **no** manifest refresh.
 - Editing **locked** files requires verifying parity with `zfoundry-zgame` installed and
   regenerating the manifest:
 
@@ -157,5 +165,6 @@ update `UniSMAC` and refresh `rust_manifest.json`.
 - `make manifest-check` exits `0` (or `make manifest-write` was run if locked files changed).
 - Tests pass in both pure-Python mode (without `zfoundry-zgame`) and accelerated mode (with
   `zfoundry-zgame` installed).
-- Preserve backwards compatibility across `0.1.x` public APIs and bitwise determinism across
-  `pyref`, `zgame`, and all three `accel` tiers.
+- Preserve backwards compatibility for `zfoundry-zgame` (`0.2` / `1` / `1` / `3` contract),
+  zero public-to-public calls inside `VecEnv`, strict unidirectional `adapters -> env` imports,
+  and bitwise determinism across `pyref`, `zgame`, and all three `accel` tiers.

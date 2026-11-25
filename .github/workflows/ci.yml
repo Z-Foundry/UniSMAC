@@ -99,6 +99,32 @@ jobs:
           assert not manifest.diff(manifest.load(), manifest.current())
           with make_vec_env('smac-portable', '3m', backend='zgame', batch_size=1) as env:
               assert env.accel == 'rust', env.accel
+              env.reset()
+              step = env.step(env.avail_actions().argmax(-1))
+              assert step.reward.shape == (1,) and step.terminated.shape == (1,)
           print('zgame version:', zgame.__version__, 'accel verified: rust')
           "
           uv run --no-sync pytest -m "not sc2 and not slow"
+
+  test-adapters:
+    name: Adapter contract tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install unismac with zgame and optional RL adapters
+        run: |
+          uv venv
+          uv pip install -e ".[adapters]" "pytest>=8.0" "pyrefly>=0.30"
+      - name: Typecheck adapters against real stubs
+        run: uv run --no-sync pyrefly check unismac/adapters tests/adapters
+      - name: Run official Gymnasium & PettingZoo contract test suites
+        env:
+          OMP_NUM_THREADS: '1'
+        run: uv run --no-sync pytest tests/adapters

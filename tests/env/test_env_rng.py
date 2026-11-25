@@ -74,20 +74,21 @@ def _rollout(batch: int, seed: int, n_steps: int, partial: bool):
     act_rng = np.random.default_rng(0)
     out: list[tuple[np.ndarray, ...]] = []
     env.reset()
-    out.append((env.get_obs().copy(), env.get_state().copy()))
-    spawns = [dict(env.last_scenarios)]
+    out.append((env.obs().copy(), env.state().copy()))
+    spawns = [env.runtime.last_scenarios()]
     for t in range(n_steps):
-        avail = env.get_avail_actions()
+        avail = env.avail_actions()
         acts = np.array([[act_rng.choice(np.flatnonzero(r)) for r in rows] for rows in avail])
-        reward, done, _ = env.step(acts)
-        out.append((reward.copy(), done.copy(), env.get_obs().copy(), env.get_state().copy()))
+        step = env.step(acts)
+        done = step.terminated | step.truncated
+        out.append((step.reward.copy(), done.copy(), env.obs().copy(), env.state().copy()))
         ids = np.flatnonzero(done).tolist()
         if partial and t % 7 == 6:
             ids = sorted(set(ids) | {t % batch})
         if ids:
             env.reset(ids)
-            spawns.append(dict(env.last_scenarios))
-            out.append((env.get_obs().copy(), env.get_state().copy()))
+            spawns.append(env.runtime.last_scenarios())
+            out.append((env.obs().copy(), env.state().copy()))
     env.close()
     return env, out, spawns
 
@@ -122,27 +123,27 @@ def test_scenarios_keyed_by_env_and_episode():
         return env._generated_scenario(gen.draw(rng_mod.stream(seed, 'generators', b, k)))
 
     env.reset()
-    first = dict(env.last_scenarios)
-    assert env.attack_prob is not None and env.enemy_mask is not None
+    first = env.runtime.last_scenarios()
+    assert env.attack_prob is not None and env._enemy_mask is not None
     attack0 = env.attack_prob.copy()
     assert all(first[b] == expected(b, 0) for b in range(3))
     assert len({first[b] for b in range(3)}) == 3
     env.reset([1])
-    assert env.last_scenarios == {1: expected(1, 1)}
+    assert env.runtime.last_scenarios() == [first[0], expected(1, 1), first[2]]
     np.testing.assert_array_equal(env.attack_prob[[0, 2]], attack0[[0, 2]])
     assert not np.array_equal(env.attack_prob[1], attack0[1])
     env.reset([1, 2])
-    assert env.last_scenarios == {1: expected(1, 2), 2: expected(2, 1)}
-    assert env.reset_count.tolist() == [1, 3, 2]
+    assert env.runtime.last_scenarios() == [first[0], expected(1, 2), expected(2, 1)]
+    assert env.runtime.reset_count().tolist() == [1, 3, 2]
 
     single = make_vec_env(
         'smacv2-portable', GEN_SCENARIO, backend='pyref', seed=seed, overrides=STOCH
     )
     single.reset()
-    assert single.attack_prob is not None and single.enemy_mask is not None
-    assert single.last_scenarios[0] == first[0]
+    assert single.attack_prob is not None and single._enemy_mask is not None
+    assert single.runtime.last_scenarios()[0] == first[0]
     np.testing.assert_array_equal(single.attack_prob[0], attack0[0])
-    np.testing.assert_array_equal(single.enemy_mask[0], env.enemy_mask[0])
+    np.testing.assert_array_equal(single._enemy_mask[0], env._enemy_mask[0])
     env.close()
     single.close()
 

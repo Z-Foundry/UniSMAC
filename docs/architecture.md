@@ -1,8 +1,8 @@
 # UniSMAC Architecture
 
-[Back to README](../README.md) · Related: [Code Map](code-map.md) · [Environment Interface](interface.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md)
+[Back to README](../README.md) · Related: [Code Map](code-map.md) · [Environment Interface](interface.md) · [Ecosystem Adapters](adapters.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md) · [Migration Guide](../MIGRATION.md)
 
-UniSMAC separates **benchmark environment semantics** (observations, global state, action masks, rewards, termination, procedural team generation, and opponents) from **simulation execution** through an explicit, vectorized backend contract. A single environment implementation runs unchanged across three interchangeable backends—**ZGame** (Rust), **PyRef** (pure Python/NumPy), and **SC2** (live StarCraft II)—inside the same Python process.
+UniSMAC separates **RL framework adapters** (PyMARL, Gymnasium, PettingZoo), **benchmark environment semantics** (observations, global state, action masks, rewards, termination/truncation, procedural team generation, and opponents), and **simulation execution** through explicit, one-way boundaries. A single purified environment kernel runs unchanged across three interchangeable backends—**ZGame** (Rust), **PyRef** (pure Python/NumPy), and **SC2** (live StarCraft II)—inside the same Python process.
 
 ---
 
@@ -10,9 +10,13 @@ UniSMAC separates **benchmark environment semantics** (observations, global stat
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ Public API      unismac.make_env() / make_vec_env()                     │
-│                 UnismacEnv (MultiAgentEnv) · VecEnv (batched)           │
-│                 unismac.profiles · unismac.cli                          │
+│ RL Adapters     unismac.adapters (strictly one-way -> unismac.env)      │
+│ (Optional)      pymarl (PyMARLEnv, 0 extra deps)                        │
+│                 gymnasium (GymnasiumEnv / GymnasiumVecEnv, [gymnasium]) │
+│                 pettingzoo (PettingZooParallelEnv, [pettingzoo])        │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Core Public API unismac.make_vec_env() · VecEnv · StepBatch             │
+│                 RuntimeView (env.runtime) · unismac.profiles · cli      │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ Environment     EnvConfig & presets (smac / smacv2 / smac-hard +        │
 │ Layer           *-portable), UnitView, UnitCatalog, Visibility,         │
@@ -34,11 +38,12 @@ UniSMAC separates **benchmark environment semantics** (observations, global stat
 
 ### Design Principles
 
-1. **The backend contract is the sole boundary**: The environment layer only reads and writes contract types (`WorldState`, `Command`, `Scenario`, `MapInfo`, `StaticData`, `Capabilities`). Engine-specific concerns—PySC2 protobuf translation, dual-client sessions, restart protocols, or Rust FFI buffers—stay strictly inside each backend.
-2. **Behavior as configuration**: Every behavioral difference across SMAC, SMACv2, and SMAC-Hard is expressed as a named field in `EnvConfig` rather than ad-hoc benchmark branching.
-3. **Explicit initial state**: Every episode starts from an explicit `Scenario` (unit slots, owners, canonical unit types, variants, coordinates, facings, and optional initial orders), ensuring reproducible starts across backends.
-4. **Self-describing batched features**: Observation and state feature blocks declare their own feature names and compute across `[B, N]` batches at once, eliminating dimension-name drift.
-5. **Explicit counter-based RNG**: All environment and backend randomness flows through named, deterministic counter-based streams keyed by `(seed, stream, env_id, episode, frame)` so Python and Rust remain bitwise identical.
+1. **The backend contract is the sole simulation boundary**: The environment layer only reads and writes contract types (`WorldState`, `Command`, `Scenario`, `MapInfo`, `StaticData`, `Capabilities`). Engine-specific concerns—PySC2 protobuf translation, dual-client sessions, restart protocols, or Rust FFI buffers—stay strictly inside each backend.
+2. **Strict one-way adapter boundary**: Framework conventions (PyMARL `MultiAgentEnv`, Gymnasium `Env`/`VectorEnv` spaces and autoreset modes, PettingZoo `ParallelEnv` per-agent dicts) live in `unismac.adapters` on top of the purified `VecEnv` kernel. `unismac.env` never imports `unismac.adapters`, `gymnasium`, or `pettingzoo`, and `VecEnv` public methods never call each other internally.
+3. **Behavior as configuration**: Every behavioral difference across SMAC, SMACv2, and SMAC-Hard is expressed as a named field in `EnvConfig` rather than ad-hoc benchmark branching.
+4. **Explicit initial state**: Every episode starts from an explicit `Scenario` (unit slots, owners, canonical unit types, variants, coordinates, facings, and optional initial orders), ensuring reproducible starts across backends.
+5. **Self-describing batched features**: Observation and state feature blocks declare their own feature names and compute across `[B, N]` batches at once, eliminating dimension-name drift.
+6. **Explicit counter-based RNG**: All environment and backend randomness flows through named, deterministic counter-based streams keyed by `(seed, stream, env_id, episode, frame)` so Python and Rust remain bitwise identical.
 
 ---
 
@@ -130,7 +135,7 @@ For the Rust crate layout and internal engine architecture of `zgame`, see [`Z-F
 
 ```text
 unismac/
-├── __init__.py       # Top-level exports: make_env, make_vec_env, VecEnv, UnismacEnv, STANDARD_PROFILE, list_profiles, CONTRACT_VERSION
+├── __init__.py       # Top-level exports: CONTRACT_VERSION, STANDARD_PROFILE, StepBatch, VecEnv, list_profiles, make_vec_env
 ├── contract/         # Contract types, Backend Protocol, Capabilities, deterministic RNG spec
 ├── backends/
 │   ├── _common.py    # Shared passive-owner resolution & config serialization helpers (pyref + zgame)
@@ -141,15 +146,21 @@ unismac/
 ├── assets/           # Bundled portable MapInfo, StaticData, measured params, map abilities
 ├── scenarios/        # 84-scenario registry across SMAC, SMACv2, and SMAC-Hard + spawn records
 ├── presets/          # smac, smacv2, smac-hard, and *-portable presets
-├── env/              # 5 core runtime files (__init__, config, core, single, dual) + 3 subpackages:
+├── env/              # 4 core runtime files (__init__, config, core, dual) + 3 subpackages:
 │   ├── semantics/    # 14 pure environment-semantics modules (actions, features, reward, rng, ...)
 │   ├── opponents/    # Opponent protocol, smac_bot.py, and scripted/ (45 SMAC-Hard scripts)
 │   └── accel/        # Accel tier routing, classic.py, services.py, semantics.py, manifest.py + rust_manifest.json
+├── adapters/         # One-way RL ecosystem adapters (strictly external to env/):
+│   ├── __init__.py   # Zero-extra exports: PyMARLEnv, UnismacEnv, make_pymarl_env
+│   ├── _common.py    # Shared optional-extra guards and adapter helpers
+│   ├── pymarl.py     # PyMARL / EPyMARL MultiAgentEnv wrapper (0 extra deps)
+│   ├── gymnasium.py  # Lazy-imported Gymnasium 1.0+ Env & VectorEnv ([gymnasium])
+│   └── pettingzoo.py # Lazy-imported PettingZoo ParallelEnv ([pettingzoo])
 ├── profiles.py       # Public semantic profiles (sc2-native, sc2-explore, sc2-symmetric, ...)
 └── cli.py            # CLI entry point (info, list-scenarios, list-profiles, show-profile, show-options, bench)
 ```
 
-For a step-by-step trace of `env.step()` and the full 1:1 module mirror against `zgame`, see [Architecture & Code Map](code-map.md). For contributor setup and test-suite structure, see [Contributing](../CONTRIBUTING.md).
+For a step-by-step trace of `env.step()` and the full 1:1 module mirror against `zgame`, see [Architecture & Code Map](code-map.md). For framework adapters, see [Ecosystem Adapters](adapters.md). For contributor setup and test-suite structure, see [Contributing](../CONTRIBUTING.md).
 
 ---
 
@@ -157,6 +168,6 @@ For a step-by-step trace of `env.step()` and the full 1:1 module mirror against 
 
 UniSMAC validates correctness across three distinct layers:
 
-1. **Upstream preset parity**: Offline unit-by-unit comparison of `smac`, `smacv2`, and `smac-hard` presets against upstream observation/state dimensions, action masks, rewards, and termination semantics.
+1. **Upstream preset & ecosystem contract parity**: Offline comparison of `smac`, `smacv2`, and `smac-hard` presets against upstream semantics, plus official Gymnasium `check_env`, PettingZoo `parallel_api_test`, and `parallel_to_aec` `api_test` compliance suites.
 2. **Cross-backend bitwise parity (`zgame` ↔ `pyref`)**: Verified across all 76 runnable portable scenarios, all three `accel` tiers (`python`, `services`, `rust`), and over 6,400 deterministic movement, combat, terrain, and charge probes (`L∞ == 0.0`).
 3. **Behavioral alignment & zero-shot SC2 transfer**: Statistical comparison against live StarCraft II 4.10 trajectories, policy-pool rank correlation, and zero-shot evaluation of policies trained purely in `zgame` when deployed on live SC2.

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "unismac"
-version = "0.1.1"
+version = "0.2.0"
 description = "Unified multi-agent StarCraft combat environments (SMAC / SMACv2 / SMAC-Hard) with pluggable backends"
 readme = "README.md"
 license = "MIT"
@@ -34,6 +34,9 @@ classifiers = [
 
 [project.optional-dependencies]
 zgame = ["zfoundry-zgame>=0.1.0,<0.2.0"]
+gymnasium = ["gymnasium>=1.0"]
+pettingzoo = ["pettingzoo>=1.24.3", "gymnasium>=1.0"]
+adapters = ["gymnasium>=1.0", "pettingzoo>=1.24.3"]
 sc2 = [
   "pysc2==4.0.0",
   "protobuf==3.20.3",
@@ -55,6 +58,10 @@ dev = [
   "ruff>=0.9",
   "pyrefly>=0.30",
 ]
+adapters = [
+  "gymnasium>=1.0",
+  "pettingzoo>=1.24.3",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["unismac"]
@@ -72,6 +79,7 @@ include = [
   "/docs",
   "/examples",
   "/CONTRIBUTING.md",
+  "/MIGRATION.md",
   "/Makefile",
   "/LICENSE",
   "/NOTICE",
@@ -108,6 +116,7 @@ markers = [
   "sc2: tests requiring a local StarCraft II client",
   "slow: full cross-tier parity tests (run with -m slow)",
   "parity: heavy cross-backend and AVX-512-disabled bitwise parity tests",
+  "adapters: tests requiring optional gymnasium or pettingzoo extras",
 ]
 
 [tool.pyrefly]
@@ -117,6 +126,10 @@ python-version = "3.12"
 ignore-missing-imports = [
   "absl",
   "absl.*",
+  "gymnasium",
+  "gymnasium.*",
+  "pettingzoo",
+  "pettingzoo.*",
   "pysc2",
   "pysc2.*",
   "s2clientprotocol",

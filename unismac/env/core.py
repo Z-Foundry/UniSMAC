@@ -1,11 +1,12 @@
-"""`VecEnv` (batched API) and `UnismacEnv` (upstream `MultiAgentEnv` API, `batch_size=1`).
+"""Purified batched environment kernel: `VecEnv`, `StepBatch`, and `RuntimeView`.
 
 Shape conventions: `B` = batch size, `A` = `n_agents`, `D` = obs dim, `S` = state dim,
 `K` = `n_actions`.
 
-Envs in a batch terminate independently: a finished env stays frozen (the backend still steps the
-batch, while finished rows preserve their terminal snapshot and `step` returns `reward=0`,
-`terminated=True`, `info={}`) until reset via `reset(env_ids=[...])`.
+Envs in a batch terminate independently: a finished env stays frozen (the backend still steps
+active rows, while finished rows preserve their terminal snapshot; `step` returns `reward=0.0`,
+`terminated=False`, `truncated=False`, `info={}` for already-frozen rows, and `runtime.done()`
+reports all currently frozen slots) until reset via `reset(env_ids=[...])`.
 
 All randomness (SMACv2 procedural generation, `stochastic_attack`, spotter and obs order, scripted
 opponents) comes from counter-based Philox streams (`unismac.env.semantics.rng`) keyed by
@@ -31,7 +32,7 @@ from __future__ import annotations
 
 import operator
 from collections.abc import Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Any, Literal
 
 import numpy as np
@@ -57,7 +58,7 @@ from .semantics import rng as rng_mod
 from .semantics.abilities import choose_ability
 from .semantics.actions import ActionSpace, FovState
 from .semantics.catalog import MEDIVAC, AllyTables, EnemyTables, UnitCatalog
-from .semantics.features import FeatureContext, ObsLayout, StateLayout
+from .semantics.features import FeatureContext, ObsLayout, StateLayout, enemy_raw_visible
 from .semantics.generators import (
     DEFAULT_ALLY_POS,
     DEFAULT_ENEMY_POS,
@@ -69,7 +70,7 @@ from .semantics.spotter import Spotter
 from .semantics.terrain import TerrainGrids
 from .semantics.units import Frame, UnitView
 
-__all__ = ['UnismacEnv', 'VecEnv', 'resolve_map_ids']
+__all__ = ['RuntimeView', 'StepBatch', 'VecEnv', 'resolve_map_ids']
 
 
 def resolve_map_ids(config: EnvConfig, spec: Any, backend_name: str) -> str:
@@ -88,26 +89,137 @@ def _per_env(values: Sequence[Any], n: int, what: str) -> list[Any]:
     return out
 
 
+@dataclass(frozen=True, slots=True)
+class StepBatch:
+    """Result of one batched `VecEnv.step` call.
+
+    Frozen, non-iterable record (no tuple unpacking); access fields by name:
+
+    * `reward`: `float64[B]` Player 1 step rewards (`0.0` for already-frozen slots).
+    * `terminated`: `bool[B]` active slots whose battle ended on this step (`False` for timeouts
+      and already-frozen slots).
+    * `truncated`: `bool[B]` active slots that reached `episode_limit` on this step (`False` for
+      battle endings and already-frozen slots).
+    * `infos`: length-`B` list of per-env info dicts (`{}` for already-frozen slots).
+    * `reward_enemy`: `float64[B]` Player 2 step rewards in two-sided mode (`dual=True`), or
+      `None` in single-sided mode.
+    """
+
+    reward: np.ndarray
+    terminated: np.ndarray
+    truncated: np.ndarray
+    infos: list[dict[str, Any]]
+    reward_enemy: np.ndarray | None = None
+
+
+class RuntimeView:
+    """Read-only diagnostic and runtime inspection view exposed via `VecEnv.runtime`."""
+
+    __slots__ = ('_env',)
+
+    def __init__(self, env: VecEnv) -> None:
+        self._env = env
+
+    @property
+    def world(self) -> WorldState | None:
+        """Current batched `WorldState`, or `None` before the first `reset()`."""
+        return self._env._world
+
+    @property
+    def backend(self) -> Backend:
+        """Underlying simulator/game `Backend` instance."""
+        return self._env._backend
+
+    @property
+    def healers(self) -> np.ndarray:
+        """Return `bool[B, A]` indicating agents whose target segment heals allies (Medivacs)."""
+        return self._env._actions.heals(self._env._require()[2])
+
+    @property
+    def env_seeds(self) -> tuple[int | None, ...]:
+        """Per-env seeds (`seeds` at construction or updated on `reset`); None uses batch seed."""
+        return tuple(self._env._env_seeds)
+
+    def frame(self, side: int = 1) -> Frame:
+        """Return `Frame` from `side`'s perspective (`side=2`: allies = Player 2, two-sided)."""
+        return self._env._require()[1] if side == 1 else self._env._side2(side)._require()[0]
+
+    def game_loop(self) -> np.ndarray:
+        """Return `int64[B]` (fresh array) of current game loops (`world.game_loop`)."""
+        return self._env._require()[0].game_loop.copy()
+
+    def done(self) -> np.ndarray:
+        """Return `bool[B]` (fresh array) of slots currently in a finished/frozen state."""
+        return self._env._done.copy()
+
+    def episode_steps(self) -> np.ndarray:
+        """Return `int64[B]` (fresh array) of steps elapsed in the current episode per env."""
+        return self._env._episode_steps.copy()
+
+    def episode_count(self) -> np.ndarray:
+        """Return `int64[B]` (fresh array) of completed episodes per env."""
+        return self._env._episode_count.copy()
+
+    def reset_count(self) -> np.ndarray:
+        """Return `int64[B]` (fresh array) of resets performed per env."""
+        return self._env._reset_count.copy()
+
+    def max_rewards(self) -> np.ndarray:
+        """Return `float64[B]` (fresh array) of per-env `max_reward` (`NaN` before reset)."""
+        return self._env._max_rewards.copy()
+
+    def counters(self) -> dict[str, int]:
+        """Return cumulative scalar counters summed across the batch."""
+        return {
+            'battles_won': int(self._env._battles_won.sum()),
+            'battles_game': int(self._env._battles_game.sum()),
+            'timeouts': int(self._env._timeouts.sum()),
+            'episodes': int(self._env._episode_count.sum()),
+        }
+
+    def opponent_names(self) -> list[str | None]:
+        """Return current episode script name per env (`opponent.names` for scripted opponents);
+        None for other opponents (including two-sided mode) or unreset envs."""
+        names: dict[int, str] = getattr(self._env._opponent, 'names', None) or {}
+        return [names.get(b) for b in range(self._env.batch_size)]
+
+    def opponent_errors(self) -> np.ndarray:
+        """Return `int64[B]` (fresh array) of cumulative steps where a scripted opponent raised an
+        exception (`opponent.errors`); 0 for other opponents."""
+        errors: dict[int, int] = getattr(self._env._opponent, 'errors', None) or {}
+        return np.array([errors.get(b, 0) for b in range(self._env.batch_size)], np.int64)
+
+    def last_scenarios(self) -> list[Scenario | None]:
+        """Return length-`B` list of the latest `Scenario` passed to the backend per env."""
+        return list(self._env._last_scenarios)
+
+    def rng_stream(self, name: str, env_id: int = 0, frame: int = 0) -> np.random.Generator:
+        """Return a fresh `Generator` for stream `name` of env `env_id`'s current episode."""
+        return self._env._rng_stream(name, env_id, frame)
+
+    def close_backend(self) -> None:
+        """Close the backend while retaining environment state (config, RNG counters, seeds, and
+        counters). All envs are marked done until the next full `reset()`."""
+        self._env._close_backend()
+
+
 class VecEnv:
-    """Batched multi-agent environment.
+    """Purified batched multi-agent environment kernel.
 
-    * `reset(env_ids=None, *, opponents=None, seeds=None) -> (obs float32[B, A, D],
-      state float32[B, S])`
-    * `step(actions int[B, A]) -> (reward float64[B], terminated bool[B], infos list[dict])`
-    * `get_obs() -> float32[B, A, D]`, `get_state() -> float32[B, S]`,
-      `get_avail_actions() -> int64[B, A, K]`
-    * Read-only queries: `alive() -> bool[B, A]`, `game_loop() -> int64[B]`, `opponent_names()`,
-      `opponent_errors()`; `close_backend()` closes the backend while preserving env state.
-    * Two-sided mode (`opponent.kind='external'`): `step(actions, enemy_actions int[B, A2])`,
-      adding `reward_enemy` (Player 2 reward) and `battle_lost` (Player 1 lost) to info;
-      `get_obs(side=2)`, `get_state(side=2)`, `get_avail_actions(side=2)`, `alive(side=2)`, and
-      `frame_for(2)` return Player 2's perspective, with dimensions from `obs_layout_for(side)`,
-      `state_layout_for(side)`, `n_agents_for(side)`, and `n_actions_for(side)`. `side=1`
-      (default) matches single-sided mode.
+    Lifecycle:
+    * `reset(env_ids=None, *, opponents=None, seeds=None) -> None`
+    * `step(actions int[B, A], enemy_actions=None) -> StepBatch`
+    * `close() -> None` (also usable as a context manager)
 
-    `get_obs_size()` / `get_state_size()` return upstream-reported sizes (off by 1 when
-    `quirks.timestep_pad` is enabled; see `unismac.env.semantics.features`), while `obs_dim` /
-    `state_dim` are actual feature lengths.
+    Pure noun projections:
+    * `obs(side=1) -> float32[B, A, D]`
+    * `state(side=1) -> float32[B, S]`
+    * `avail_actions(side=1) -> int64[B, A, K]`
+    * `alive(side=1) -> bool[B, A]`
+    * `capabilities() -> float32[B, A * C]`
+
+    Diagnostic and runtime inspection lives on `env.runtime` (`RuntimeView`).
+    Framework adapters (PyMARL, Gymnasium, PettingZoo) live in `unismac.adapters`.
 
     `seed` is batch-wide; `seeds` is per-env (length `batch_size`, mutually exclusive with `seed`).
     `accel` requests a tier (`'auto'`, `'python'`, `'services'`, `'rust'`); `self.accel` is the
@@ -131,13 +243,13 @@ class VecEnv:
         ops = self._k.services
         self.config = config
         self.spec = spec
-        self.backend = backend
+        self._backend = backend
         self.batch_size = int(backend.batch_size)
         if seed is not None and seeds is not None:
             raise ValueError(
                 'Specify at most one of seed or seeds (seed is batch-wide; seeds is per-env)'
             )
-        self.seed = seed
+        self._seed = seed
         self._rng_seed = rng_mod.entropy_seed() if seed is None else int(seed)
         # Per-env seeds; None entries fall back to batch seed (stream key (seed, stream, env_id)).
         self._env_seeds: list[int | None] = [None] * self.batch_size
@@ -152,12 +264,12 @@ class VecEnv:
                 'capability.health (stochastic_health) requires the backend to kill units '
                 'mid-step, which is not yet supported by the contract'
             )
-        self.procedural = cap.team_gen is not None
-        if bool(getattr(spec, 'procedural', False)) and not self.procedural:
+        self._procedural = cap.team_gen is not None
+        if bool(getattr(spec, 'procedural', False)) and not self._procedural:
             raise ValueError(
                 f'{spec.name} is a procedural scenario and requires capability.team_gen'
             )
-        if self.procedural:
+        if self._procedural:
             self.n_agents = int(cap.n_units if cap.n_units is not None else spec.n_agents)
             self.n_enemies = int(cap.n_enemies if cap.n_enemies is not None else spec.n_enemies)
         else:
@@ -173,7 +285,7 @@ class VecEnv:
                 raise ValueError(
                     'capability.start_positions requires a procedural scenario (team_gen)'
                 )
-        self.generator = (
+        self._generator = (
             ScenarioGenerator(cap, self.n_agents, self.n_enemies) if cap.enabled else None
         )
         limit = config.termination.episode_limit
@@ -203,7 +315,7 @@ class VecEnv:
         n_fov = int(vis.n_fov) if vis.model == 'cone' else 0
         if vis.model == 'cone' and n_fov < 1:
             raise ValueError('visibility.model=cone requires n_fov >= 1')
-        self.actions = ActionSpace(
+        self._actions = ActionSpace(
             self.n_agents,
             self.n_enemies,
             config.actions,
@@ -212,7 +324,7 @@ class VecEnv:
             n_fov=n_fov,
             ops=ops,
         )
-        self.n_actions = self.actions.n_actions
+        self.n_actions = self._actions.n_actions
         o = config.obs
         if (o.pathing_grid or o.terrain_height) and float(config.actions.move_amount) != int(
             config.actions.move_amount
@@ -224,65 +336,67 @@ class VecEnv:
         self.state_layout = StateLayout.build(
             config, self.catalog, self.obs_layout, self.n_agents, self.n_enemies, self.n_actions
         )
-        self.terrain = TerrainGrids.from_map_info(
+        self._terrain = TerrainGrids.from_map_info(
             map_info, height_flip=config.quirks.terrain_height_flip, ops=ops
         )
-        self.opponent = make_opponent(config.opponent)
+        self._opponent = make_opponent(config.opponent)
         # Two-sided mode (opponent.kind=external): validate config and backend symmetry upfront.
         self.dual = config.opponent.kind == 'external'
         if self.dual:
             check_config(config)
             check_backend(backend, map_info.map_id)
-        self.map_id = map_info.map_id
+        self._map_id = map_info.map_id
         self._playable = tuple(float(v) for v in map_info.playable)
         # Map bounds for ability point targets (upstream map_info.map_size).
-        self.map_size = (int(map_info.width), int(map_info.height))
+        self._map_size = (int(map_info.width), int(map_info.height))
         self._players = (
             AgentPlayer(config.players.agent_race),  # type: ignore[arg-type]
-            self.opponent.player(str(config.players.enemy_race)),
+            self._opponent.player(str(config.players.enemy_race)),
         )
         # Map-specific unit stat overrides applied to every episode's Scenario.
-        self.unit_overrides = (
+        self._unit_overrides = (
             load_unit_overrides(map_info.map_id) if config.backend.unit_overrides == 'asset' else ()
         )
         # Mirror spawn axis: set only in two-sided mode with spawn_mirror='auto', explicit spawns,
         # and a mirrorable map (see dual.mirror_axis).
         self.mirror: Literal['x', 'y'] | None = None
-        self.scenario: Scenario | None = (
-            None if self.procedural else self._build_scenario(map_info, spawn_record)
+        self._scenario: Scenario | None = (
+            None if self._procedural else self._build_scenario(map_info, spawn_record)
         )
-        if self.procedural and config.backend.spawn_mode != 'explicit':
+        if self._procedural and config.backend.spawn_mode != 'explicit':
             raise ValueError('Procedural scenarios require backend.spawn_mode=explicit')
         self._check_capabilities(heal)
 
-        self.view = UnitView(self.n_agents, self.n_enemies, config.units)
+        self._view = UnitView(self.n_agents, self.n_enemies, config.units)
         b = self.batch_size
-        self.rewarder = BattleReward(b, self.n_agents, self.n_enemies, config.reward, ops)
+        self._rewarder = BattleReward(b, self.n_agents, self.n_enemies, config.reward, ops)
         # Per-env max_reward computed on first reset (upstream episode 0 init_units); NaN before.
-        self.max_rewards = np.full(b, np.nan)
+        self._max_rewards = np.full(b, np.nan)
         # Per-env reset count (= RNG episode index + 1); reset to 0 when per-env seed changes.
-        self.reset_count = np.zeros(b, np.int64)
+        self._reset_count = np.zeros(b, np.int64)
         # Most recent Scenario passed to backend per env_id (for inspecting procedural episodes).
-        self.last_scenarios: dict[int, Scenario] = {}
-        self.fov = FovState(b, self.n_agents, n_fov) if n_fov else None
-        self.spotter = (
+        self._last_scenarios: list[Scenario | None] = [None] * b
+        self._fov = FovState(b, self.n_agents, n_fov) if n_fov else None
+        self._spotter = (
             Spotter(b, self.n_agents, self.n_enemies, vis.prob_obs_enemy)
             if vis.spotter_gate
             else None
         )
+        # Per-slot (reset_count, episode_steps) watermark of the last materialized spotter gate.
+        self._spotter_stamp = np.full((b, 2), -1, np.int64)
         self.attack_prob = np.ones((b, self.n_agents)) if cap.attack is not None else None
-        self.enemy_mask = (
+        self._enemy_mask = (
             np.zeros((b, self.n_agents, self.n_enemies), np.int64)
             if cap.enemy_mask is not None
             else None
         )
-        self.episode_steps = np.zeros(b, np.int64)
-        self.episode_count = np.zeros(b, np.int64)
-        self.last_action = np.zeros((b, self.n_agents, self.n_actions))
-        self.done = np.ones(b, bool)
-        self.battles_won = np.zeros(b, np.int64)
-        self.battles_game = np.zeros(b, np.int64)
-        self.timeouts = np.zeros(b, np.int64)
+        self._episode_steps = np.zeros(b, np.int64)
+        self._episode_count = np.zeros(b, np.int64)
+        self._last_action = np.zeros((b, self.n_agents, self.n_actions))
+        self._done = np.ones(b, bool)
+        self._battles_won = np.zeros(b, np.int64)
+        self._battles_game = np.zeros(b, np.int64)
+        self._timeouts = np.zeros(b, np.int64)
         self._world: WorldState | None = None
         self._frame: Frame | None = None
         self._ally_tables: AllyTables | None = None
@@ -290,7 +404,8 @@ class VecEnv:
         self._cache: dict[str, Any] = {}
         # Player 2 perspective components and per-episode state (two-sided mode only).
         self._p2: Seat | None = Seat(self) if self.dual else None
-        self.opponent.bind(self)
+        self._runtime = RuntimeView(self)
+        self._opponent.bind(self)
 
     # ------------------------------------------------------------ Construction
     def _build_scenario(self, map_info: MapInfo, record: Any) -> Scenario:
@@ -304,7 +419,7 @@ class VecEnv:
                 players=players,
                 spawn_mode='map_trigger',
                 n_slots=n_slots,
-                unit_overrides=self.unit_overrides,
+                unit_overrides=self._unit_overrides,
             )
         if record is None:
             raise ValueError(
@@ -334,14 +449,14 @@ class VecEnv:
             )
         spawns = tuple(Spawn(**vars(s)) for s in spawns)
         if self.dual and cfg.backend.spawn_mirror == 'auto':
-            self.mirror = mirror_axis(spawns, map_info, self.unit_overrides)
+            self.mirror = mirror_axis(spawns, map_info, self._unit_overrides)
         if self.mirror is not None:
             spawns = mirror_spawns(spawns, self.mirror, map_info.playable)
         return Scenario(
             map_id,
             players=players,
             spawns=spawns,
-            unit_overrides=self.unit_overrides,
+            unit_overrides=self._unit_overrides,
             mirror=self.mirror,
         )
 
@@ -368,28 +483,28 @@ class VecEnv:
                 )
                 spawns.append(Spawn(owner, ut, x, y, int(var)))
         return Scenario(
-            self.map_id,
+            self._map_id,
             players=self._players,
             spawns=tuple(spawns),
-            unit_overrides=self.unit_overrides,
+            unit_overrides=self._unit_overrides,
         )
 
     def _check_capabilities(self, heal: bool) -> None:
-        caps = self.backend.capabilities
+        caps = self._backend.capabilities
         needs: dict[str, object] = {}
-        if self.config.backend.spawn_mode == 'map_trigger' and not self.procedural:
+        if self.config.backend.spawn_mode == 'map_trigger' and not self._procedural:
             needs['map_trigger'] = True
         if self.config.opponent.kind == 'engine_ai':
             needs['engine_ai'] = True
         if heal:
             needs['abilities'] = True
-        if self.unit_overrides:
+        if self._unit_overrides:
             needs['unit_overrides'] = True
         if self.mirror is not None:
             needs['mirror_spawn'] = True
         caps.require(**needs)
         if self.config.actions.ability and not (
-            caps.ability_query and isinstance(self.backend, AbilityQuery)
+            caps.ability_query and isinstance(self._backend, AbilityQuery)
         ):
             raise CapabilityError(
                 f'Backend {caps.name} does not support ability queries (AbilityQuery), so the '
@@ -401,7 +516,7 @@ class VecEnv:
                 f'got {self.batch_size}'
             )
 
-    # ------------------------------------------------------------ Dimensions
+    # ------------------------------------------------------------ Dimensions & views
     @property
     def obs_dim(self) -> int:
         return self.obs_layout.size
@@ -410,56 +525,10 @@ class VecEnv:
     def state_dim(self) -> int:
         return self.state_layout.size
 
-    def get_obs_size(self) -> int:
-        return self.obs_layout.reported_size
-
-    def get_state_size(self) -> int:
-        return self.state_layout.reported_size
-
-    def get_total_actions(self) -> int:
-        return self.n_actions
-
-    def get_env_info(self) -> dict[str, Any]:
-        info: dict[str, Any] = {
-            'state_shape': self.get_state_size(),
-            'obs_shape': self.get_obs_size(),
-        }
-        if getattr(self.spec, 'benchmark', None) == 'smacv2':
-            info['cap_shape'] = self.get_cap_size()
-        info.update(
-            {
-                'n_actions': self.get_total_actions(),
-                'n_agents': self.n_agents,
-                'episode_limit': self.episode_limit,
-                'agent_features': list(self.state_layout.ally),
-                'enemy_features': list(self.state_layout.enemy),
-            }
-        )
-        return info
-
-    def get_cap_size(self) -> int:
-        """SMACv2 `get_cap_size`: hit probability + type bits."""
-        return int(self.attack_prob is not None) + self.catalog.unit_type_bits
-
-    def get_capabilities(self) -> np.ndarray:
-        """Return `float32[B, A * cap_size]` (SMACv2 `get_capabilities` flattened across agents)."""
-        _, _, a_tab, _ = self._require()
-        cols = []
-        if self.attack_prob is not None:
-            cols.append(self.attack_prob[..., None])
-        bits = self.catalog.unit_type_bits
-        if bits:
-            cols.append((a_tab.type_id[..., None] == np.arange(bits)).astype(np.float64))
-        if not cols:
-            return np.zeros((self.batch_size, 0), np.float32)
-        cap = np.concatenate(cols, axis=-1)
-        return cap.reshape(self.batch_size, -1).astype(np.float32)
-
     @property
-    def max_reward(self) -> float | None:
-        """`max_reward` of env 0 (upstream `max_reward` when `batch_size=1`); None before reset."""
-        v = self.max_rewards[0]
-        return None if np.isnan(v) else float(v)
+    def runtime(self) -> RuntimeView:
+        """Read-only diagnostic and runtime inspection view."""
+        return self._runtime
 
     def _require(self) -> tuple[WorldState, Frame, AllyTables, EnemyTables]:
         if self._world is None or self._frame is None:
@@ -468,12 +537,7 @@ class VecEnv:
         return self._world, self._frame, self._ally_tables, self._enemy_tables
 
     # ------------------------------------------------------------ Seeds & RNG streams
-    @property
-    def env_seeds(self) -> tuple[int | None, ...]:
-        """Per-env seeds (`seeds` at construction or updated on `reset`); None uses batch `seed`."""
-        return tuple(self._env_seeds)
-
-    def rng_stream(self, name: str, env_id: int, frame: int = 0) -> np.random.Generator:
+    def _rng_stream(self, name: str, env_id: int, frame: int = 0) -> np.random.Generator:
         """Return a fresh `Generator` for stream `name` of env `env_id`'s current episode at
         `frame` (`unismac.env.semantics.rng.stream`).
 
@@ -482,11 +546,11 @@ class VecEnv:
         """
         s = self._env_seeds[env_id]
         seed, slot = (self._rng_seed, env_id) if s is None else (s, 0)
-        return rng_mod.stream(seed, name, slot, int(self.reset_count[env_id]) - 1, frame)
+        return rng_mod.stream(seed, name, slot, int(self._reset_count[env_id]) - 1, frame)
 
-    def rng_streams(self, name: str, frames: np.ndarray) -> rng_mod.Streams:
+    def _rng_streams(self, name: str, frames: np.ndarray) -> rng_mod.Streams:
         """Return batched `Streams` for `name`: `streams(b)` matches
-        `rng_stream(name, b, frames[b])` (unreset envs get episode 0 and should not be drawn from).
+        `_rng_stream(name, b, frames[b])` (unreset envs get episode 0 and should not be drawn from).
         Keys and counters are packed as arrays for Rust kernels."""
         if name not in self._stream_keys:
             keys = [
@@ -498,20 +562,46 @@ class VecEnv:
             k0, k1 = (np.array(k, np.uint64) for k in zip(*keys, strict=True))
             self._stream_keys[name] = (k0, k1)
         k0, k1 = self._stream_keys[name]
-        episode = np.maximum(self.reset_count - 1, 0).astype(np.uint64)
+        episode = np.maximum(self._reset_count - 1, 0).astype(np.uint64)
         return rng_mod.Streams(k0, k1, np.asarray(frames).astype(np.uint64), episode)
 
     def _backend_seed(self, b: int) -> int | None:
         s = self._env_seeds[b]
         if s is not None:
             return s
-        return None if self.seed is None else self.seed + b
+        return None if self._seed is None else self._seed + b
 
     def _ally_tables_for(self, frame: Frame) -> AllyTables:
         """Build ally tables, using per-env catalogs where per-env `min_code` is active."""
         a = frame.allies
+        unit_type, variant, shield_max = a.unit_type, a.variant, a.shield_max
+        if not self._reset_count.all():
+            ready = self._reset_count > 0
+            if ready.any():
+                src = int(np.flatnonzero(ready)[0])
+                unit_type = unit_type.copy()
+                variant = variant.copy()
+                shield_max = shield_max.copy()
+                unit_type[~ready] = unit_type[src]
+                variant[~ready] = variant[src]
+                shield_max[~ready] = shield_max[src]
         catalogs = [self._row_catalogs.get(b, self.catalog) for b in range(self.batch_size)]
-        return self._k.ally_tables(catalogs, a.unit_type, a.variant, a.shield_max)
+        return self._k.ally_tables(catalogs, unit_type, variant, shield_max)
+
+    def _enemy_tables_for(self, frame: Frame) -> EnemyTables:
+        en = frame.enemies
+        unit_type, variant, shield_max = en.unit_type, en.variant, en.shield_max
+        if not self._reset_count.all():
+            ready = self._reset_count > 0
+            if ready.any():
+                src = int(np.flatnonzero(ready)[0])
+                unit_type = unit_type.copy()
+                variant = variant.copy()
+                shield_max = shield_max.copy()
+                unit_type[~ready] = unit_type[src]
+                variant[~ready] = variant[src]
+                shield_max[~ready] = shield_max[src]
+        return self._k.enemy_tables(self.catalog, unit_type, variant, shield_max)
 
     # ------------------------------------------------------------ Main loop
     def reset(
@@ -520,8 +610,9 @@ class VecEnv:
         *,
         opponents: Sequence[str | None] | None = None,
         seeds: Sequence[int | None] | None = None,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Reset `env_ids` (all envs by default) and return batch `(obs, state)`.
+    ) -> None:
+        """Reset `env_ids` (all envs by default). Call `obs()`, `state()`, and `avail_actions()`
+        to project observations, states, and action masks.
 
         * `opponents`: script names aligned 1-to-1 with `env_ids` (or all envs), overriding the
           `opponent` stream draw (`None` draws normally). Valid only for `scripted` opponents;
@@ -539,7 +630,7 @@ class VecEnv:
         names: list[str | None] | None = None
         if opponents is not None:
             names = _per_env(opponents, len(ids), 'opponents (must match env_ids 1-to-1)')
-            self.opponent.check_names(names)
+            self._opponent.check_names(names)
             if all(n is None for n in names):
                 names = None
         if seeds is not None:
@@ -550,36 +641,38 @@ class VecEnv:
                     # Match a freshly created env: reset episode counter, max_reward, and catalog.
                     self._env_seeds[b] = s
                     self._stream_keys = {}
-                    self.reset_count[b] = 0
-                    self.max_rewards[b] = np.nan
+                    self._reset_count[b] = 0
+                    self._max_rewards[b] = np.nan
+                    self._spotter_stamp[b] = -1
                     self._row_catalogs.pop(b, None)
                     if self._p2 is not None:
-                        self._p2.forget(b)
+                        self._p2._forget(b)
         backend_seeds = [self._backend_seed(b) for b in ids]
         episodes: dict[int, int] = {}
         for b in ids:
-            episodes[b] = int(self.reset_count[b])
-            self.reset_count[b] += 1
+            episodes[b] = int(self._reset_count[b])
+            self._reset_count[b] += 1
         draws: list[Any] = [None] * len(ids)
-        if self.generator is not None:
-            gens = self.rng_streams('generators', np.zeros(b_size, np.int64))
-            draws = self._k.draw(self.generator, gens, ids)
+        if self._generator is not None:
+            gens = self._rng_streams('generators', np.zeros(b_size, np.int64))
+            draws = self._k.draw(self._generator, gens, ids)
         scenarios: list[Scenario] = []
         for b, draw in zip(ids, draws, strict=True):
             if draw is not None:
                 if self.attack_prob is not None:
                     assert draw.attack_prob is not None
                     self.attack_prob[b] = draw.attack_prob
-                if self.enemy_mask is not None:
+                if self._enemy_mask is not None:
                     assert draw.enemy_mask is not None
-                    self.enemy_mask[b] = draw.enemy_mask
-            if self.procedural:
+                    self._enemy_mask[b] = draw.enemy_mask
+            if self._procedural:
                 scenarios.append(self._generated_scenario(draw))
             else:
-                assert self.scenario is not None
-                scenarios.append(self.scenario)
-        self.last_scenarios = dict(zip(ids, scenarios, strict=True))
-        fresh = self.backend.reset(
+                assert self._scenario is not None
+                scenarios.append(self._scenario)
+        for b, sc in zip(ids, scenarios, strict=True):
+            self._last_scenarios[b] = sc
+        fresh = self._backend.reset(
             scenarios,
             env_ids=None if env_ids is None else ids,
             seeds=backend_seeds,
@@ -589,7 +682,7 @@ class VecEnv:
         else:
             self._k.copy_rows(self._world, fresh, np.asarray(ids))
         world = self._world
-        if self.catalog.min_code is None:
+        if ids and self.catalog.min_code is None:
             rows = world.alive[ids[0]] & (world.owner[ids[0]] == 1)
             self.catalog = self.catalog.fit(world.unit_type[ids[0], rows])
         if self._catalog0.min_code is None:
@@ -599,36 +692,38 @@ class VecEnv:
                 ):
                     rows = world.alive[b] & (world.owner[b] == 1)
                     self._row_catalogs[b] = self._catalog0.fit(world.unit_type[b, rows])
-        self._k.assign(self.view, world, ids, self.catalog.ally_code)
-        frame = self._k.frame(self.view, world)
+        self._k.assign(self._view, world, ids, self.catalog.ally_code)
+        frame = self._k.frame(self._view, world)
         self._ally_tables = self._ally_tables_for(frame)
         en = frame.enemies
-        self._enemy_tables = self._k.enemy_tables(
-            self.catalog, en.unit_type, en.variant, en.shield_max
-        )
+        self._enemy_tables = self._enemy_tables_for(frame)
         self._k.fill_max_rewards(
-            self.max_rewards, ids, self.n_enemies, self.config.reward, en.health_max, en.shield_max
+            self._max_rewards, ids, self.n_enemies, self.config.reward, en.health_max, en.shield_max
         )
-        if self.fov is not None:
-            self.fov.reset(ids)
-        if self.spotter is not None:
-            self.spotter.reset(ids)
-        self.rewarder.reset(ids)
-        self.episode_steps[ids] = 0
-        self.last_action[ids] = 0.0
-        self.done[ids] = False
+        if self._fov is not None:
+            self._fov.reset(ids)
+        if self._spotter is not None:
+            self._spotter.reset(ids)
+            self._spotter_stamp[ids] = -1
+        self._rewarder.reset(ids)
+        self._episode_steps[ids] = 0
+        self._last_action[ids] = 0.0
+        self._done[ids] = False
         if self._p2 is not None:
-            self._p2.reset(world, ids, episodes)
-        self._k.opponent_reset(self.opponent, world, ids, names)
+            self._p2._reset(world, ids, episodes)
+        self._k.opponent_reset(self._opponent, world, ids, names)
         self._frame = frame
         self._cache = {}
-        return self.get_obs(), self.get_state()
+        # Materialize frame-0 spotter state so step() without an intervening obs() stays exact.
+        if self._spotter is not None:
+            self._cache['gate'] = self._ensure_spotter()
 
-    def step(
-        self, actions: Any, enemy_actions: Any = None
-    ) -> tuple[np.ndarray, np.ndarray, list[dict[str, Any]]]:
-        """Advance one environment step. `enemy_actions` (`int[B, A2]`, Player 2 actions) is
-        required in two-sided mode and forbidden otherwise."""
+    def step(self, actions: Any, enemy_actions: Any = None) -> StepBatch:
+        """Advance one environment step and return a `StepBatch`.
+
+        `enemy_actions` (`int[B, A2]`, Player 2 actions) is required in two-sided mode
+        (`dual=True`) and forbidden otherwise.
+        """
         world, frame, a_tab, e_tab = self._require()
         acts = np.asarray(actions, dtype=np.int64).reshape(self.batch_size, self.n_agents)
         p2 = self._p2
@@ -636,92 +731,64 @@ class VecEnv:
             raise ValueError(
                 'enemy_actions is only valid in two-sided mode (opponent.kind=external)'
             )
-        acts2 = None if p2 is None else p2.parse(enemy_actions)
-        active = ~self.done
+        acts2 = None if p2 is None else p2._parse(enemy_actions)
+        active = ~self._done
         attack_rng = None
         if self.attack_prob is not None:
-            attack_rng = self.rng_streams('attack', self.episode_steps)
+            attack_rng = self._rng_streams('attack', self._episode_steps)
         cmd = self._k.to_command(
-            self.actions,
+            self._actions,
             acts,
             active,
-            self.get_avail_actions(),
+            self._avail(),
             frame,
             a_tab,
             world.n_slots,
-            fov=self.fov,
+            fov=self._fov,
             attack_prob=self.attack_prob,
             attack_rng=attack_rng,
-            ability_choice=self.ability_choice(),
+            ability_choice=self._ability_choice(),
         )
         if p2 is not None and acts2 is not None:
-            p2.issue(acts2, active, world.n_slots, cmd)
-        self._k.opponent_issue(self.opponent, world, cmd, active)
+            p2._issue(acts2, active, world.n_slots, cmd)
+        self._k.opponent_issue(self._opponent, world, cmd, active)
         eye = np.eye(self.n_actions)
-        self.last_action[active] = eye[acts[active]]
+        self._last_action[active] = eye[acts[active]]
         if active.any():
             rows = np.flatnonzero(active)
-            self._k.advance(self.backend, cmd, self.config.backend.step_mul, world, rows)
-        self.episode_steps[active] += 1
-        cur = self._k.frame(self.view, world)
+            self._k.advance(self._backend, cmd, self.config.backend.step_mul, world, rows)
+        self._episode_steps[active] += 1
+        cur = self._k.frame(self._view, world)
         if p2 is None:
             end = self._k.game_end(
                 cur, a_tab, e_tab, self.config.termination, medivac_rules=self.catalog.heal_possible
             )
         else:
-            end = p2.game_end(world, cur, a_tab)
-        if self.spotter is not None:
+            end = p2._game_end(world, cur, a_tab)
+        if self._spotter is not None:
             self._k.spotter_after_step(
-                self.spotter,
+                self._spotter,
                 cur.allies.health == 0,
                 cur.enemies.health == 0,
                 np.flatnonzero(active),
             )
-        reward = self._k.reward(self.rewarder, frame, cur, active)
-        reward, terminated, infos = self._k.settle(self, active, end, cur, reward)
-        if p2 is not None:
-            p2.settle(active, end, infos)
+        reward = self._k.reward(self._rewarder, frame, cur, active)
+        prev_timeouts = self._timeouts.copy()
+        reward, raw_done, infos = self._k.settle(self, active, end, cur, reward)
+        truncated = active & (self._timeouts > prev_timeouts)
+        terminated = active & raw_done & ~truncated
+        reward_enemy = None if p2 is None else p2._settle(active, end, infos)
         self._frame = cur
         self._cache = {}
-        return reward, terminated, infos
-
-    # ------------------------------------------------------------ Observations
-    def _context(self) -> FeatureContext:
-        _, frame, a_tab, e_tab = self._require()
-        if self.config.actions.mask_by_range:
-            true_avail = self.get_avail_actions()
-        else:
-            if 'true_avail' not in self._cache:
-                self._cache['true_avail'] = self._k.avail(
-                    self.actions,
-                    frame,
-                    a_tab,
-                    self.terrain,
-                    self.fov,
-                    mask_by_range=True,
-                    ability_choice=self.ability_choice(),
-                    map_size=self.map_size,
-                )
-            true_avail = self._cache['true_avail']
-        return FeatureContext(
-            config=self.config,
-            catalog=self.catalog,
-            terrain=self.terrain,
-            frame=frame,
-            ally_tables=a_tab,
-            enemy_tables=e_tab,
-            avail=self.get_avail_actions(),
-            last_action=self.last_action,
-            episode_steps=self.episode_steps,
-            episode_limit=self.episode_limit,
-            true_target=true_avail[..., self.actions.n_no_attack :],
-            fov=None if self.fov is None else self.fov.dirs.copy(),
-            fov_angle=0.0 if self.fov is None else self.fov.angle,
-            attack_prob=self.attack_prob,
-            enemy_mask=self.enemy_mask,
-            ops=self._k.services,
+        return StepBatch(
+            reward=reward,
+            terminated=terminated,
+            truncated=truncated,
+            infos=infos,
+            reward_enemy=reward_enemy,
         )
 
+    # ------------------------------------------------------------ Internal calculation primitives
     def _side2(self, side: int) -> Seat:
         """Return Player 2's `Seat` when `side == 2` in two-sided mode, else raise `ValueError`."""
         if side == 2 and self._p2 is not None:
@@ -730,54 +797,23 @@ class VecEnv:
             raise ValueError('side=2 is only valid in two-sided mode (opponent.kind=external)')
         raise ValueError(f'side must be 1 or 2, got {side!r}')
 
-    def n_agents_for(self, side: int) -> int:
-        """Return agent count for `side` (`side=2` is Player 2's unit count in two-sided mode)."""
-        return self.n_agents if side == 1 else self._side2(side).n_agents
-
-    def n_actions_for(self, side: int) -> int:
-        """Return action count for `side` (sides may differ in target count, e.g. `5m_vs_6m`)."""
-        return self.n_actions if side == 1 else self._side2(side).n_actions
-
-    def obs_layout_for(self, side: int) -> ObsLayout:
-        return self.obs_layout if side == 1 else self._side2(side).obs_layout
-
-    def state_layout_for(self, side: int) -> StateLayout:
-        return self.state_layout if side == 1 else self._side2(side).state_layout
-
-    def get_avail_actions(self, side: int = 1) -> np.ndarray:
-        """Return `int64[B, A, K]`; `side=2` returns Player 2's `[B, A2, K2]` (two-sided mode)."""
-        if side != 1:
-            return self._side2(side).get_avail_actions()
-        if 'avail' not in self._cache:
-            _, frame, a_tab, _ = self._require()
-            self._cache['avail'] = self._k.avail(
-                self.actions,
-                frame,
-                a_tab,
-                self.terrain,
-                self.fov,
-                ability_choice=self.ability_choice(),
-                map_size=self.map_size,
-            )
-        return self._cache['avail']
-
-    def query_abilities(self) -> list[list[list[int]]] | None:
+    def _query_abilities(self) -> list[list[list[int]]] | None:
         """Return available native ability IDs (ascending) per env and slot for the current frame,
         or None if unsupported by the backend. Cached once per frame (matching upstream)."""
         if 'abilities' not in self._cache:
-            backend = self.backend
-            ok = self.backend.capabilities.ability_query and isinstance(backend, AbilityQuery)
+            backend = self._backend
+            ok = backend.capabilities.ability_query and isinstance(backend, AbilityQuery)
             self._cache['abilities'] = backend.query_abilities() if ok else None  # type: ignore[union-attr]
         return self._cache['abilities']
 
-    def ability_choice(self) -> np.ndarray | None:
+    def _ability_choice(self) -> np.ndarray | None:
         """Return `int64[B, A]` selected ability per agent (`choose_ability`), or None if the
         ability segment is disabled."""
-        if not self.actions.n_ability:
+        if not self._actions.n_ability:
             return None
         if 'ability_choice' not in self._cache:
             _, frame, _, _ = self._require()
-            abilities = self.query_abilities()
+            abilities = self._query_abilities()
             assert abilities is not None
             slots = frame.allies.slot
             out = np.zeros(slots.shape, np.int64)
@@ -787,115 +823,188 @@ class VecEnv:
             self._cache['ability_choice'] = out
         return self._cache['ability_choice']
 
+    def _avail(self) -> np.ndarray:
+        if 'avail' not in self._cache:
+            _, frame, a_tab, _ = self._require()
+            self._cache['avail'] = self._k.avail(
+                self._actions,
+                frame,
+                a_tab,
+                self._terrain,
+                self._fov,
+                ability_choice=self._ability_choice(),
+                map_size=self._map_size,
+            )
+        return self._cache['avail']
+
+    def _context(self) -> FeatureContext:
+        _, frame, a_tab, e_tab = self._require()
+        avail = self._avail()
+        if self.config.actions.mask_by_range:
+            true_avail = avail
+        else:
+            if 'true_avail' not in self._cache:
+                self._cache['true_avail'] = self._k.avail(
+                    self._actions,
+                    frame,
+                    a_tab,
+                    self._terrain,
+                    self._fov,
+                    mask_by_range=True,
+                    ability_choice=self._ability_choice(),
+                    map_size=self._map_size,
+                )
+            true_avail = self._cache['true_avail']
+        return FeatureContext(
+            config=self.config,
+            catalog=self.catalog,
+            terrain=self._terrain,
+            frame=frame,
+            ally_tables=a_tab,
+            enemy_tables=e_tab,
+            avail=avail,
+            last_action=self._last_action,
+            episode_steps=self._episode_steps,
+            episode_limit=self.episode_limit,
+            true_target=true_avail[..., self._actions.n_no_attack :],
+            fov=None if self._fov is None else self._fov.dirs.copy(),
+            fov_angle=0.0 if self._fov is None else self._fov.angle,
+            attack_prob=self.attack_prob,
+            enemy_mask=self._enemy_mask,
+            ops=self._k.services,
+        )
+
     def _obs_rng(self, b: int) -> np.random.Generator:
-        return self.rng_stream('obs_shuffle', b, int(self.episode_steps[b]))
+        return self._rng_stream('obs_shuffle', b, int(self._episode_steps[b]))
 
-    def get_obs(self, side: int = 1) -> np.ndarray:
-        """Return `float32[B, A, obs_dim]`; `side=2` returns Player 2's `[B, A2, obs_dim2]`
-        (two-sided mode).
+    def _ensure_spotter(self, ctx: FeatureContext | None = None) -> np.ndarray:
+        """Materialize spotter visibility gates with per-slot `(reset_count, episode_steps)`
+        watermark idempotence.
 
-        When spotter gating is enabled, updates gates per env in agent order (shuffled when
-        `quirks.obs_shuffle` is on) via `features.observe_spotter` using the frame's `obs_shuffle`
-        stream (`obs_shuffle_p2` for Player 2); cached once per frame.
+        Already-observed slots preserve their exact gate snapshot even when another slot in the
+        batch is partially reset on the same frame, and unreset slots (`reset_count == 0`) are
+        skipped without touching their RNG stream.
         """
-        if side != 1:
-            return self._side2(side).get_obs()
+        assert self._spotter is not None
+        want = np.column_stack((self._reset_count, self._episode_steps))
+        ready = self._reset_count > 0
+        already = ready & np.all(self._spotter_stamp == want, axis=1)
+        if already.all():
+            return self._spotter.gate.copy()
+        ctx = self._context() if ctx is None else ctx
+        if ready.all():
+            saved = self._spotter.gate[already].copy() if already.any() else None
+            gate = self._k.observe_spotter(
+                ctx,
+                self._spotter,
+                self._rng_streams('obs_shuffle', self._episode_steps),
+                self.config.quirks.obs_shuffle,
+            )
+            if saved is not None:
+                self._spotter.gate[already] = saved
+                gate[already] = saved
+            self._spotter_stamp[:] = want
+            return gate
+        dirty = np.flatnonzero(ready & ~already)
+        if dirty.size:
+            raw = enemy_raw_visible(ctx)
+            alive = ctx.frame.allies.health > 0
+            shuffle = self.config.quirks.obs_shuffle
+            for b in dirty:
+                b_int = int(b)
+                gen = self._obs_rng(b_int)
+                order = list(range(raw.shape[1]))
+                if shuffle:
+                    rng_mod.shuffle(gen, order)
+                self._spotter.observe(b_int, order, raw[b_int], alive[b_int], gen)
+            self._spotter_stamp[dirty] = want[dirty]
+        return self._spotter.gate.copy()
+
+    def _obs(self) -> np.ndarray:
         if 'obs' not in self._cache:
             ctx = self._context()
-            if self.spotter is not None:
-                # If any env has not been reset yet, fetch per-env via rng_stream so it raises.
-                streams = (
-                    self.rng_streams('obs_shuffle', self.episode_steps)
-                    if self.reset_count.all()
-                    else self._obs_rng
-                )
-                gate = self._k.observe_spotter(
-                    ctx, self.spotter, streams, self.config.quirks.obs_shuffle
-                )
+            if self._spotter is not None:
+                gate = self._cache.get('gate')
+                if gate is None:
+                    gate = self._ensure_spotter(ctx)
+                    self._cache['gate'] = gate
                 ctx = replace(ctx, gate=gate)
             self._cache['obs'] = self._k.encode_obs(ctx, self.obs_layout)
         return self._cache['obs']
 
-    def get_state(self, side: int = 1) -> np.ndarray:
-        """Return `float32[B, state_dim]`; `side=2` returns Player 2's view (two-sided mode)."""
-        if side != 1:
-            return self._side2(side).get_state()
+    def _state(self) -> np.ndarray:
         if 'state' not in self._cache:
-            obs = self.get_obs() if self.state_layout.obs_instead is not None else None
+            obs = self._obs() if self.state_layout.obs_instead is not None else None
             self._cache['state'] = self._k.encode_state(self._context(), self.state_layout, obs)
         return self._cache['state']
 
-    @property
-    def world(self) -> WorldState:
-        """Current batched `WorldState` (read-only view for debugging)."""
-        return self._require()[0]
+    def _close_backend(self) -> None:
+        self._backend.close()
+        self._done[:] = True
 
-    @property
-    def frame(self) -> Frame:
-        """Current `Frame` (allies / enemies sorted by index, `[B, N]`; read-only, for heuristics
-        and evaluation)."""
-        return self._require()[1]
+    def _close(self) -> None:
+        self._backend.close()
 
-    def frame_for(self, side: int) -> Frame:
-        """Return `Frame` from `side`'s perspective (`side=2`: allies = Player 2, two-sided)."""
-        return self._require()[1] if side == 1 else self._side2(side).require()[0]
+    # ------------------------------------------------------------ Side metadata queries
+    def n_agents_for(self, side: int) -> int:
+        """Return agent count for `side` (`side=2` is Player 2's unit count in two-sided mode)."""
+        return self.n_agents if side == 1 else self._side2(side).n_agents
 
-    @property
-    def healers(self) -> np.ndarray:
-        """Return `bool[B, A]` indicating agents whose target segment heals allies (Medivacs)."""
-        return self.actions.heals(self._require()[2])
+    def n_actions_for(self, side: int) -> int:
+        """Return action count for `side` (sides may differ in target count, e.g. `5m_vs_6m`)."""
+        return self.n_actions if side == 1 else self._side2(side).n_actions
+
+    def obs_layout_for(self, side: int) -> ObsLayout:
+        """Return `ObsLayout` for `side`."""
+        return self.obs_layout if side == 1 else self._side2(side).obs_layout
+
+    def state_layout_for(self, side: int) -> StateLayout:
+        """Return `StateLayout` for `side`."""
+        return self.state_layout if side == 1 else self._side2(side).state_layout
+
+    # ------------------------------------------------------------ Pure noun projections
+    def obs(self, side: int = 1) -> np.ndarray:
+        """Return `float32[B, A, obs_dim]`; `side=2` returns Player 2's `[B, A2, obs_dim2]`
+        (two-sided mode)."""
+        return self._obs() if side == 1 else self._side2(side)._obs()
+
+    def state(self, side: int = 1) -> np.ndarray:
+        """Return `float32[B, state_dim]`; `side=2` returns Player 2's view (two-sided mode)."""
+        return self._state() if side == 1 else self._side2(side)._state()
+
+    def avail_actions(self, side: int = 1) -> np.ndarray:
+        """Return `int64[B, A, K]`; `side=2` returns Player 2's `[B, A2, K2]` (two-sided mode)."""
+        return self._avail() if side == 1 else self._side2(side)._avail()
 
     def alive(self, side: int = 1) -> np.ndarray:
         """Return `bool[B, A]` (fresh array) of alive agents (`frame.allies.health > 0`, matching
         obs, rewards, and `dead_allies`); `side=2` is Player 2's (two-sided mode)."""
-        return self.frame_for(side).allies.health > 0
+        frame = self._require()[1] if side == 1 else self._side2(side)._require()[0]
+        return frame.allies.health > 0
 
-    def game_loop(self) -> np.ndarray:
-        """Return `int64[B]` (fresh array) of current game loops (`world.game_loop`)."""
-        return self._require()[0].game_loop.copy()
+    def capabilities(self) -> np.ndarray:
+        """Return `float32[B, A * cap_size]` (SMACv2 capabilities flattened across agents)."""
+        _, _, a_tab, _ = self._require()
+        cols = []
+        if self.attack_prob is not None:
+            cols.append(self.attack_prob[..., None])
+        bits = self.catalog.unit_type_bits
+        if bits:
+            cols.append((a_tab.type_id[..., None] == np.arange(bits)).astype(np.float64))
+        if not cols:
+            return np.zeros((self.batch_size, 0), np.float32)
+        cap = np.concatenate(cols, axis=-1)
+        return cap.reshape(self.batch_size, -1).astype(np.float32)
 
-    def opponent_names(self) -> list[str | None]:
-        """Return current episode script name per env (`opponent.names` for scripted opponents);
-        None for other opponents (including two-sided mode) or unreset envs."""
-        names: dict[int, str] = getattr(self.opponent, 'names', None) or {}
-        return [names.get(b) for b in range(self.batch_size)]
-
-    def opponent_errors(self) -> np.ndarray:
-        """Return `int64[B]` (fresh array) of cumulative steps where a scripted opponent raised an
-        exception (`opponent.errors`); 0 for other opponents."""
-        errors: dict[int, int] = getattr(self.opponent, 'errors', None) or {}
-        return np.array([errors.get(b, 0) for b in range(self.batch_size)], np.int64)
-
-    def close_backend(self) -> None:
-        """Close the backend while retaining environment state (config, RNG episode counters,
-        per-env seeds, and stats).
-
-        All envs are marked done (`step` returns 0, True, `{}`); the next full `reset()` restarts
-        the backend (new SC2 session or rebuilt pyref/zgame batch; partial reset is invalid because
-        other slots would be empty). `alive()` and `game_loop()` retain the last pre-close frame.
-        """
-        self.backend.close()
-        self.done[:] = True
-
-    def get_stats(self) -> dict[str, Any]:
-        won, games = int(self.battles_won.sum()), int(self.battles_game.sum())
-        return {
-            'battles_won': won,
-            'battles_game': games,
-            'battles_draw': int(self.timeouts.sum()),
-            'win_rate': won / games if games else 0.0,
-            'timeouts': int(self.timeouts.sum()),
-            'restarts': 0,
-        }
-
+    # ------------------------------------------------------------ Context manager & repr
     def close(self) -> None:
-        self.backend.close()
+        self._close()
 
     def __enter__(self) -> VecEnv:
         return self
 
     def __exit__(self, *_exc: object) -> None:
-        self.close()
+        self._close()
 
     def __repr__(self) -> str:
         extras = ''
@@ -905,9 +1014,6 @@ class VecEnv:
                 extras += f' mirror={self.mirror!r}'
         return (
             f'<VecEnv {self.spec.benchmark}/{self.spec.name} '
-            f'backend={self.backend.capabilities.name!r} batch_size={self.batch_size} '
+            f'backend={self._backend.capabilities.name!r} batch_size={self.batch_size} '
             f'accel={self.accel!r} n_agents={self.n_agents} n_actions={self.n_actions}{extras}>'
         )
-
-
-from .single import UnismacEnv  # noqa: E402

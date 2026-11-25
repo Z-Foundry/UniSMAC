@@ -1,4 +1,4 @@
-"""Environment layer: `make_env`, batched `VecEnv`, and SMAC-compatible `UnismacEnv`.
+"""Environment layer: `make_vec_env`, batched `VecEnv`, `StepBatch`, and `RuntimeView`.
 
 Components: `units`, `catalog`, `visibility`, `actions`, `features`, `reward`,
 `termination`, `opponents`, `terrain`, and `config` (`EnvConfig`). Built-in
@@ -7,10 +7,12 @@ presets are defined in `unismac.presets`.
 Example::
 
     with make_vec_env('smac-portable', '8m', profile='sc2-native', batch_size=8) as env:
-        obs, state = env.reset()
+        env.reset()
+        obs, state, avail = env.obs(), env.state(), env.avail_actions()
 
     with make_vec_env('smac-portable', '2s3z', dual=True, batch_size=4) as env:
-        obs, state = env.reset()
+        env.reset()
+        obs_p1, obs_p2 = env.obs(side=1), env.obs(side=2)
 
 `accel` (default `'auto'`) selects the environment-layer acceleration tier:
 `'python'` (pure Python), `'services'` (Rust system kernels + numeric services),
@@ -28,14 +30,13 @@ from typing import TYPE_CHECKING, Any, Literal
 from ..contract import Backend, CapabilityError
 from . import accel as accel_mod
 from .config import BackendConfig, EnvConfig, apply_overrides, resolve_config
-from .core import VecEnv, resolve_map_ids
+from .core import RuntimeView, StepBatch, VecEnv, resolve_map_ids
 from .opponents import (
     MULTI_LEVEL_SMAC_MAPS,
     SMAC_TRIGGER_SPECS,
     NativeSMACOpponent,
     native_smac_overrides,
 )
-from .single import UnismacEnv
 
 if TYPE_CHECKING:
     from ..backends.pyref import PyrefConfig
@@ -45,11 +46,11 @@ __all__ = [
     'SMAC_TRIGGER_SPECS',
     'EnvConfig',
     'NativeSMACOpponent',
-    'UnismacEnv',
+    'RuntimeView',
+    'StepBatch',
     'VecEnv',
     'apply_overrides',
     'build_config',
-    'make_env',
     'make_vec_env',
     'native_smac_overrides',
     'resolve_config',
@@ -346,39 +347,3 @@ def make_vec_env(
         if inst.batch_size != batch_size:
             raise ValueError(f'Backend batch_size={inst.batch_size} does not match {batch_size}')
     return VecEnv(config, spec, inst, info, seed=seed, seeds=seeds, spawn_record=record, accel=tier)
-
-
-def make_env(
-    preset: str,
-    scenario: str,
-    *,
-    backend: Literal['auto', 'sc2', 'pyref', 'zgame'] | Backend | None = None,
-    profile: str | None = None,
-    dual: bool = False,
-    batch_size: int = 1,
-    seed: int | None = None,
-    seeds: Sequence[int] | None = None,
-    overrides: Mapping[str, Any] | None = None,
-    zgame_threads: int | None = None,
-    accel: Literal['auto', 'python', 'services', 'rust'] = 'auto',
-) -> UnismacEnv | VecEnv:
-    """Create an environment: `UnismacEnv` (SMAC API) when `batch_size=1`, else `VecEnv`.
-
-    `overrides` keys may be dotted paths, upstream flat parameter names, or group names (see
-    `unismac.env.config`). See `make_vec_env` for `profile`, `dual`, `backend='auto'`, `seeds`,
-    `zgame_threads`, and `accel`.
-    """
-    vec = make_vec_env(
-        preset,
-        scenario,
-        backend=backend,
-        profile=profile,
-        dual=dual,
-        batch_size=batch_size,
-        seed=seed,
-        seeds=seeds,
-        overrides=overrides,
-        zgame_threads=zgame_threads,
-        accel=accel,
-    )
-    return UnismacEnv(vec) if batch_size == 1 else vec

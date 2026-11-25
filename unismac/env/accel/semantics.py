@@ -398,8 +398,8 @@ class RustKernels:
             return
         env = opponent._require_env()
         ids = [int(b) for b in env_ids]
-        table = env.rng_streams('opponent', np.zeros(world.batch_size, np.int64)).table()
-        view = env.view
+        table = env._rng_streams('opponent', np.zeros(world.batch_size, np.int64)).table()
+        view = env._view
         try:
             chosen = rs.reset(
                 world,
@@ -432,10 +432,10 @@ class RustKernels:
             opponent_issue(opponent, world, command, active)
             return
         env = opponent._require_env()
-        view = env.view
-        steps = env.episode_steps
-        table = env.rng_streams('opponent', steps + 1).table() if rs.uses_choice(active) else None
-        abilities = env.query_abilities() if rs.needs_abilities(active) else None
+        view = env._view
+        steps = env._episode_steps
+        table = env._rng_streams('opponent', steps + 1).table() if rs.uses_choice(active) else None
+        abilities = env._query_abilities() if rs.needs_abilities(active) else None
         try:
             errors = rs.issue(
                 world,

@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
 [![ZGame](https://img.shields.io/badge/Backend-ZGame%20Rust-orange.svg)](https://github.com/Z-Foundry/ZGame)
 
-**UniSMAC** 是可替换后端的统一星际争霸多智能体基准环境（StarCraft Multi-Agent Challenge），将 **SMAC**、**SMACv2** 与 **SMAC-Hard** 统一于同一套简洁接口、同一份向量化契约与三类可互换仿真后端之下：
+**UniSMAC** 是可替换后端的统一星际争霸多智能体基准环境（StarCraft Multi-Agent Challenge），将 **SMAC**、**SMACv2** 与 **SMAC-Hard** 统一于同一套纯净向量化内核、多生态 RL 适配层与三类可互换仿真后端之下：
 
 - **`zgame`**（Rust，独立仓 [Z-Foundry/ZGame](https://github.com/Z-Foundry/ZGame)，PyPI 包名 `zfoundry-zgame`，导入名 `zgame`）：高性能确定性仿真，单核速度达到 Python 参考后端的 **27×～91×**，**无需安装 StarCraft II 客户端**；
 - **`pyref`**（纯 Python / NumPy）：可读、易改的可执行参考规范，与 `zgame` 保持逐位一致；
@@ -16,9 +16,9 @@
 
 - **三基准同进程共存、零冲突**：整合 SMAC（23）、SMACv2（26）与 SMAC-Hard（35）共 **84 个注册基准场景**，提供 6 套命名预设（`smac`、`smacv2`、`smac-hard` 及三套跨后端可移植预设 `*-portable`），彻底消除上游 PySC2 地图注册表重名冲突与补丁版 PySC2 独占限制。
 - **76/84 可移植场景开箱即跑**：**76 / 84** 个可移植场景在 `pyref` 与 `zgame` 上开箱即运行（`smac-portable` 23/23、`smacv2-portable` 26/26、`smac-hard-portable` 27/35；其余 8 张 SMAC-Hard 场景因缺地图/出生点资产或在 SC2 4.10 中崩溃而隔离），且 **76 / 76** 全部自动命中全 Rust 环境层加速（`accel='rust'`）。
-- **原生双边对称自博弈（Self-Play）**：内置 `opponent.kind='external'` 双边模式、可镜像地图自动镜像出生与无偏对称配置 `sc2-symmetric`，支持 **75 / 76** 个可移植场景（全部命中 `accel='rust'`），在 `2s3z`、`3s5z`、`8m` 上镜像胜率 95% 置信区间全部覆盖 `0.50`。
+- **原生双边对称自博弈（Self-Play）**：内置 `dual=True`（`opponent.kind='external'`）双边模式、可镜像地图自动镜像出生与无偏对称配置 `sc2-symmetric`，支持 **75 / 76** 个可移植场景（全部命中 `accel='rust'`），在 `2s3z`、`3s5z`、`8m` 上镜像胜率 95% 置信区间全部覆盖 `0.50`。
 - **高保真 SC2 行为对齐与零样本实机迁移**：纯 `zgame` 上训练的策略可直接零样本迁移至真实 StarCraft II 4.10 评估，实机胜率大幅领先旧启发式基线。
-- **无缝对接现有 MARL 生态**：`make_vec_env()` 返回批量 `VecEnv`（支持按局种子 `seeds` 实现批位置无关复现、支持按局指定脚本对手）；`make_env(..., batch_size=1)` 返回兼容 PyMARL / EPyMARL 的 `UnismacEnv`。
+- **纯净内核 + 多生态 RL 适配层（`v0.2.0`）**：`make_vec_env()` 提供极简正交的 `VecEnv` 内核（`reset() -> None`、`step() -> StepBatch` 原生分离 `terminated`/`truncated`/`reward_enemy`、名词投影 `obs()`/`state()`/`avail_actions()` 及 `env.runtime`），`unismac.adapters` 开箱支持 **PyMARL / EPyMARL**（零额外依赖）、**Gymnasium 1.0+ `Env` / `VectorEnv`**（`[gymnasium]`）与 **PettingZoo `ParallelEnv`**（`[pettingzoo]`，原生支持单边与 `dual=True` 双边自博弈）。从 `v0.1.x` 升级请参阅 [MIGRATION.md](MIGRATION.md)。
 
 ## 实测指标
 
@@ -50,6 +50,16 @@
 pip install unismac
 ```
 
+### 可选生态适配器
+
+```bash
+pip install "unismac[gymnasium]"   # Gymnasium 1.0+ Env / VectorEnv 适配器
+pip install "unismac[pettingzoo]"  # PettingZoo ParallelEnv 适配器（支持单边与双边自博弈）
+pip install "unismac[adapters]"    # 同时安装 Gymnasium 与 PettingZoo 适配器
+```
+
+PyMARL / EPyMARL 适配器（`unismac.adapters.pymarl`）**零额外依赖**，安装核心包即可直接使用。
+
 ### 纯 Python / 无预编译包平台兜底
 
 在缺少匹配 `cp310-abi3` wheel 的平台（如 glibc < 2.28、Alpine ARM64、RISC-V 或自由线程 Python 3.13t/3.14t）上，可按纯 Python 模式安装（自动使用 `pyref` 后端与 `accel='python'`）：
@@ -71,54 +81,64 @@ export SC2PATH=/path/to/StarCraftII
 
 ## 30 秒快速开始
 
-### 1. 零 SC2 依赖、单边向量化高速采样（`zgame`）
+### 1. 零 SC2 依赖、单边向量化高速采样（`VecEnv`）
 
 ```python
 import numpy as np
 from unismac import make_vec_env
 
 with make_vec_env("smac-portable", "8m", profile="sc2-native", batch_size=64, seed=0) as env:
-    obs, state = env.reset()  # obs: [64, 8, D], state: [64, S]; env.accel == "rust"
+    env.reset()
+    obs, state = env.obs(), env.state()  # obs: [64, 8, D], state: [64, S]; env.accel == "rust"
     rng = np.random.default_rng(0)
     for _ in range(100):
-        avail = env.get_avail_actions()
+        avail = env.avail_actions()
         actions = ((1.0 + rng.random(avail.shape)) * avail).argmax(axis=-1)
-        rewards, terminated, infos = env.step(actions)
-        if terminated.any():
-            env.reset(np.flatnonzero(terminated).tolist())
+        batch = env.step(actions)  # StepBatch(reward, terminated, truncated, infos)
+        done = batch.terminated | batch.truncated
+        if done.any():
+            env.reset(np.flatnonzero(done).tolist())
 ```
 
 ### 2. 双边对称自博弈（Self-Play）
 
 ```python
-import numpy as np
 from unismac import make_vec_env
 
 with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as env:
     env.reset()
-    obs_p1, obs_p2 = env.get_obs(side=1), env.get_obs(side=2)
-    avail_p1, avail_p2 = env.get_avail_actions(side=1), env.get_avail_actions(side=2)
-    r_p1, terminated, infos = env.step(avail_p1.argmax(-1), enemy_actions=avail_p2.argmax(-1))
-    r_p2 = np.array([info.get("reward_enemy", 0.0) for info in infos])
+    obs_p1, obs_p2 = env.obs(side=1), env.obs(side=2)
+    avail_p1, avail_p2 = env.avail_actions(side=1), env.avail_actions(side=2)
+    batch = env.step(avail_p1.argmax(-1), enemy_actions=avail_p2.argmax(-1))
+    r_p1, r_p2 = batch.reward, batch.reward_enemy
 ```
 
-### 3. 一行切换实机 SC2 评估或纯 Python `pyref`
+### 3. 多生态适配器（Gymnasium / PettingZoo / PyMARL）与实机 SC2 一行切换
 
 ```python
-from unismac import make_env
+# Gymnasium 1.0+ 向量环境（需 `pip install "unismac[gymnasium]"`）
+from unismac.adapters.gymnasium import make_gym_vec_env
+gym_env = make_gym_vec_env("smac-portable", "8m", profile="sc2-native", batch_size=32, seed=0)
+obs, info = gym_env.reset(seed=0)  # obs = {"obs": ..., "state": ..., "action_mask": int8}
 
-# 真实 SC2 实机评估（需先 `pip install "unismac[sc2]"` 并设置 SC2PATH）
-sc2_env = make_env("smac-portable", "8m", backend="sc2", seed=0)  # MultiAgentEnv 兼容的 UnismacEnv
+# PettingZoo ParallelEnv，原生支持双边自博弈（需 `pip install "unismac[pettingzoo]"`）
+from unismac.adapters.pettingzoo import make_pettingzoo_env
+pz_env = make_pettingzoo_env("smac-portable", "2s3z", dual=True, seed=0)
+obs, infos = pz_env.reset(seed=0)  # 智能体: ally_0..ally_4, enemy_0..enemy_4
 
-# 或切换纯 Python 参考后端调试（无需 SC2 与 Rust）
-pyref_env = make_env("smac-portable", "8m", backend="pyref", profile="sc2-native", seed=0)
+# PyMARL / EPyMARL MultiAgentEnv 与实机 SC2 / 纯 Python pyref 一行切换（zgame/pyref 零额外依赖）
+from unismac.adapters.pymarl import make_pymarl_env
+sc2_env = make_pymarl_env("smac-portable", "8m", backend="sc2", seed=0)
+pyref_env = make_pymarl_env("smac-portable", "8m", backend="pyref", profile="sc2-native", seed=0)
 ```
 
 完整可运行示例位于 [`examples/`](examples/quickstart_vec.py)：
-- [`examples/quickstart_vec.py`](examples/quickstart_vec.py) — 单边向量化采样示例
-- [`examples/self_play.py`](examples/self_play.py) — 双边对称自博弈示例
-- [`examples/marl_loop_minimal.py`](examples/marl_loop_minimal.py) — PyMARL/CleanRL 风格训练循环、超时截断区分与按局 `seeds` 确定性评测
-- [`examples/sc2_eval.py`](examples/sc2_eval.py) — 多后端一键切换示例（`zgame` / `pyref` / `sc2`）
+- [`examples/quickstart_vec.py`](examples/quickstart_vec.py) — 单边向量化采样示例（`VecEnv` + `StepBatch`）
+- [`examples/self_play.py`](examples/self_play.py) — 双边对称自博弈示例（`dual=True`，`batch.reward_enemy`）
+- [`examples/marl_loop_minimal.py`](examples/marl_loop_minimal.py) — 零依赖 MARL 训练循环、`terminated`/`truncated` 引导值区分与按局 `seeds` 确定性评测
+- [`examples/sc2_eval.py`](examples/sc2_eval.py) — PyMARL 适配器与多后端一键切换示例（`zgame` / `pyref` / `sc2`）
+- [`examples/gymnasium_vec.py`](examples/gymnasium_vec.py) — Gymnasium 1.0+ `VectorEnv` 示例（覆盖 `next_step`/`same_step`/`disabled` 三种自动重置模式）
+- [`examples/pettingzoo_parallel.py`](examples/pettingzoo_parallel.py) — PettingZoo `ParallelEnv` 示例（单边合作 + `dual=True` 双边自博弈）
 
 ## 命令行工具
 
@@ -136,12 +156,14 @@ unismac bench --preset smac-portable --scenario 8m \
 
 | 文档 | 内容 |
 | --- | --- |
-| [架构设计](docs/architecture.md) | 总体分层、后端契约、SC2 / PyRef / ZGame 三后端架构与跨包版本契约 |
+| [架构设计](docs/architecture.md) | 总体分层、纯净内核与适配层边界、SC2 / PyRef / ZGame 三后端架构与跨包版本契约 |
 | [源码阅读地图](docs/code-map.md) | 30 分钟源码导航：`step()` 调用链、`pyref` ↔ `zgame` 1:1 镜像表、`accel` 路由与 FAQ |
-| [环境接口规范](docs/interface.md) | `VecEnv`/`UnismacEnv` 公开 API、`profile=`/`dual=`、按局种子与对手、`accel` 档位及 CLI |
+| [环境接口规范](docs/interface.md) | 纯净 `VecEnv`、`StepBatch`、`RuntimeView`、`profile=`/`dual=`、按局种子与对手、`accel` 档位及 CLI |
+| [生态适配器指南](docs/adapters.md) | PyMARL、Gymnasium 1.0+（`Env`/`VectorEnv`）与 PettingZoo（`ParallelEnv` + `parallel_to_aec`）选型矩阵与契约 |
 | [基准与预设](docs/benchmarks.md) | SMAC / SMACv2 / SMAC-Hard 差异矩阵、84 场景（76 可移植可运行）与 SC2 本地资产提取 |
 | [Profile 与配置指南](docs/profiles-and-config.md) | 公开语义化 Profile（`sc2-native`、`sc2-explore`、`sc2-symmetric`）、兼容别名与分组 `PyrefConfig` 说明 |
-| [贡献指南](CONTRIBUTING.md) | 本地开发环境、[`Makefile`](Makefile) 校验目标、7 层测试目录与 `rust_manifest.json` 流程 |
+| [升级迁移指南（`v0.1.x` → `v0.2.0`）](MIGRATION.md) | 符号变更对照表与升级至 `v0.2.0` 纯净内核及 `unismac.adapters` 的前后代码示例 |
+| [贡献指南](CONTRIBUTING.md) | 本地开发环境、[`Makefile`](Makefile) 校验目标、8 层测试目录与 `rust_manifest.json` 流程 |
 
 ## 引用
 

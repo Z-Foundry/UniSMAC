@@ -14,6 +14,7 @@ import pytest
 
 import unismac
 from unismac import cli, presets, profiles, scenarios
+from unismac.adapters import PyMARLEnv, make_pymarl_env
 from unismac.assets import MapInfo, StaticData
 from unismac.backends.pyref import PyrefConfig
 from unismac.backends.pyref.options_meta import (
@@ -23,16 +24,14 @@ from unismac.backends.pyref.options_meta import (
     describe_pyref_options,
 )
 from unismac.contract import CapabilityError
-from unismac.env import UnismacEnv, build_config, make_env, make_vec_env
-from unismac.env import core as core_mod
-from unismac.env import single as single_mod
+from unismac.env import build_config, make_vec_env
 from unismac.env.accel import classic as classic_mod
 from unismac.env.accel import manifest as manifest_mod
 
 
 def test_top_level_v011_exports() -> None:
-    """Top-level package exposes v0.1.1 version and convenience profile helpers."""
-    assert unismac.__version__ == '0.1.1'
+    """Top-level package exposes current version and convenience profile helpers."""
+    assert unismac.__version__ == '0.2.0'
     assert unismac.CONTRACT_VERSION == '0.2'
     assert unismac.STANDARD_PROFILE == profiles.STANDARD_PROFILE == 'sc2-native'
     assert unismac.list_profiles is profiles.list_profiles
@@ -46,15 +45,15 @@ def test_top_level_v011_exports() -> None:
 
 
 def test_make_env_profile_dual_and_auto_backend() -> None:
-    """``profile=``, ``dual=``, and ``backend='auto'`` work while preserving 0.1.0 defaults."""
-    for fn in (make_vec_env, make_env):
+    """`profile=`, `dual=`, and `backend='auto'` work on `make_vec_env` and `make_pymarl_env`."""
+    for fn in (make_vec_env, make_pymarl_env):
         params = inspect.signature(fn).parameters
         assert params['profile'].kind is inspect.Parameter.KEYWORD_ONLY
         assert params['dual'].kind is inspect.Parameter.KEYWORD_ONLY
 
-    # Default with no backend/profile/dual remains 'sc2' (0.1.0 compatibility).
+    # Default with no backend/profile/dual remains 'sc2'.
     with make_vec_env('smac-portable', '3m', batch_size=1) as sc2_env:
-        assert type(sc2_env.backend).__name__ == 'Sc2Backend'
+        assert type(sc2_env.runtime.backend).__name__ == 'Sc2Backend'
     with pytest.raises(CapabilityError):
         make_vec_env('smac-portable', '3m', batch_size=2)
 
@@ -67,14 +66,14 @@ def test_make_env_profile_dual_and_auto_backend() -> None:
         seed=0,
         overrides={'backend.pyref_options': {'projectile_3d': False}},
     ) as env:
-        assert type(env.backend).__name__ in ('ZgameBackend', 'PyrefBackend')
+        assert type(env.runtime.backend).__name__ in ('ZgameBackend', 'PyrefBackend')
         opts = dict(env.config.backend.pyref_options)
         assert opts['projectile_3d'] is False
         assert opts['native_assist_on_hit'] is True
 
     # Explicit backend='auto' picks zgame when installed, else pyref.
     with make_vec_env('smac-portable', '3m', backend='auto', batch_size=1, seed=0) as env:
-        assert type(env.backend).__name__ in ('ZgameBackend', 'PyrefBackend')
+        assert type(env.runtime.backend).__name__ in ('ZgameBackend', 'PyrefBackend')
 
     # dual=True configures external opponent cleanly.
     with make_vec_env(
@@ -103,11 +102,8 @@ def test_make_env_profile_dual_and_auto_backend() -> None:
         make_vec_env('smac-portable', '3m', profile='sc2-live', backend='zgame', batch_size=1)
 
 
-def test_context_manager_repr_and_unismac_env_parity() -> None:
-    """``VecEnv`` and ``UnismacEnv`` support context managers, ``repr``, and aligned properties."""
-    assert single_mod.UnismacEnv is UnismacEnv
-    assert core_mod.UnismacEnv is UnismacEnv
-
+def test_context_manager_repr_and_pymarl_env_parity() -> None:
+    """``VecEnv`` and ``PyMARLEnv`` support context managers, ``repr``, and aligned properties."""
     with make_vec_env(
         'smac-portable', '3m', profile='minimal', backend='pyref', batch_size=2, seed=0
     ) as vec:
@@ -115,11 +111,12 @@ def test_context_manager_repr_and_unismac_env_parity() -> None:
         assert 'VecEnv' in text and '3m' in text and 'pyref' in text
         vec.reset()
 
-    with make_env(
+    with make_pymarl_env(
         'smac-portable', '3m', profile='minimal', backend='pyref', dual=True, seed=0
     ) as env:
+        assert isinstance(env, PyMARLEnv)
         text = repr(env)
-        assert 'UnismacEnv' in text and '3m' in text
+        assert 'PyMARLEnv' in text and '3m' in text
         assert env.accel in ('python', 'services', 'rust')
         assert env.dual is True
         assert env.mirror == 'x'
@@ -281,7 +278,7 @@ def test_manifest_v011_cli_and_test_paths(capsys: pytest.CaptureFixture[str]) ->
     env_dir = Path(unismac.__file__).resolve().parent / 'env'
     top_py = sorted(p.name for p in env_dir.glob('*.py'))
     top_dirs = sorted(p.name for p in env_dir.iterdir() if p.is_dir() and p.name != '__pycache__')
-    assert top_py == ['__init__.py', 'config.py', 'core.py', 'dual.py', 'single.py']
+    assert top_py == ['__init__.py', 'config.py', 'core.py', 'dual.py']
     assert top_dirs == ['accel', 'opponents', 'semantics']
     assert (env_dir / 'accel' / 'rust_manifest.json').is_file()
 

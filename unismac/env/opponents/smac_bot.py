@@ -294,7 +294,7 @@ class NativeSMACOpponent(Opponent):
         self.spec = SMAC_TRIGGER_SPECS.get(
             name, SMACTriggerSpec('CUSTOM', 'point', target_xy=None, formation_offset=True)
         )
-        self._can_heal = env.backend.capabilities.abilities
+        self._can_heal = env._backend.capabilities.abilities
         x0, y0, x1, y1 = env._playable
         self._playable = (float(x0), float(y0), float(x1), float(y1))
 
@@ -352,7 +352,7 @@ class NativeSMACOpponent(Opponent):
             if spec.kind == 'random_segment':
                 assert spec.segment is not None
                 (sx0, sy0), (sx1, sy1) = spec.segment
-                t = float(env.rng_stream('smac_trigger', b, 0).uniform(0.0, 1.0))
+                t = float(env._rng_stream('smac_trigger', b, 0).uniform(0.0, 1.0))
                 tx = sx0 + (sx1 - sx0) * t
                 ty = sy0 + (sy1 - sy0) * t
             elif spec.target_xy is not None:

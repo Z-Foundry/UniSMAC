@@ -171,8 +171,7 @@ def resolve(accel: str, config: EnvConfig | None = None, spec: Any = None) -> st
         if accel == 'auto':
             return 'services'
         raise ValueError(
-            "accel='rust' requires config and scenario metadata; "
-            'construct via make_vec_env / make_env'
+            "accel='rust' requires config and scenario metadata; construct via make_vec_env"
         )
     recipe, stale = rust_blockers(config, spec)
     if accel == 'rust':

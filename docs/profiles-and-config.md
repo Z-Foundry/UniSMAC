@@ -1,6 +1,6 @@
 # Profiles & Configuration Reference
 
-[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Environment Interface](interface.md) · [Benchmarks & Presets](benchmarks.md)
+[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Environment Interface](interface.md) · [Ecosystem Adapters](adapters.md) · [Benchmarks & Presets](benchmarks.md)
 
 UniSMAC uses **named profiles** (`unismac.profiles`) to bundle validated simulator configurations into concise, human-readable names, while keeping the full underlying `PyrefConfig` surface accessible for fine-grained research and ablations.
 
@@ -25,7 +25,8 @@ from unismac import STANDARD_PROFILE, make_vec_env
 
 # 1. Recommended single-side rollout / training profile (auto-selects zgame when installed)
 with make_vec_env("smac-portable", "8m", profile=STANDARD_PROFILE, batch_size=64, seed=0) as env:
-    obs, state = env.reset()
+    env.reset()
+    obs, state = env.obs(), env.state()
 
 # 2. Overlay individual PyrefConfig fields on top of a profile (deep-merged automatically)
 with make_vec_env(
@@ -35,7 +36,8 @@ with make_vec_env(
     batch_size=16,
     overrides={"backend.pyref_options": {"projectile_3d": True}},
 ) as env:
-    obs, state = env.reset()
+    env.reset()
+    obs, state = env.obs(), env.state()
 
 # 3. Two-sided symmetric self-play (automatically selects sc2-symmetric + opponent.kind='external')
 with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as env:
