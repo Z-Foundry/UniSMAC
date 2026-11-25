@@ -84,16 +84,21 @@ jobs:
           uv venv
           uv pip install -e . "pytest>=8.0"
       - name: Verify Rust manifest consistency
-        run: uv run --no-sync python -m unismac.env.manifest
+        run: uv run --no-sync python -m unismac.env.accel.manifest
       - name: Verify accel='rust' active & run test suite
         env:
           OMP_NUM_THREADS: '1'
         run: |
           uv run --no-sync python -c "
           import zgame
-          from unismac.env import accel
+          from unismac.env import accel, make_vec_env
+          from unismac.env.accel import manifest
           assert zgame.CONTRACT_VERSION == '0.2'
           assert zgame.env.SEMANTICS == 3
-          print('zgame version:', zgame.__version__, 'accel status:', accel.rust_status())
+          assert accel.native_available()
+          assert not manifest.diff(manifest.load(), manifest.current())
+          with make_vec_env('smac-portable', '3m', backend='zgame', batch_size=1) as env:
+              assert env.accel == 'rust', env.accel
+          print('zgame version:', zgame.__version__, 'accel verified: rust')
           "
           uv run --no-sync pytest -m "not sc2 and not slow"

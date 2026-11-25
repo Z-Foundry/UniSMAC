@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Literal
 
 import numpy as np
 
@@ -21,9 +20,15 @@ from unismac.contract import (
     WorldState,
 )
 
+from .._common import (
+    capabilities_for_options,
+    collect_attributes,
+    resolve_passive_owners,
+    validate_agent_scenario,
+)
 from . import pipeline
 from .config import PyrefConfig
-from .sim import Sim, check_scenario, collect_attributes, reset_env
+from .sim import Sim, reset_env
 from .subsystems.commands import check_command
 
 # Capabilities for the default config (straight movement, no collision); actual
@@ -43,17 +48,6 @@ CAPABILITIES = Capabilities(
     mirror_spawn=True,
 )
 
-_PATHING_CAPABILITY: dict[str, Literal['none', 'grid']] = {
-    'straight': 'none',
-    'grid': 'grid',
-    'navmesh': 'grid',
-}
-_COLLISION_CAPABILITY: dict[str, Literal['none', 'hard']] = {
-    'none': 'none',
-    'hard': 'hard',
-    'native': 'hard',
-}
-
 
 def _charge_owners(map_id: str) -> tuple[int, ...]:
     """Return player owners whose Zealots have Charge on this map (assets/map_abilities.json)."""
@@ -68,16 +62,26 @@ def _passive_config(config: PyrefConfig, scenario: Scenario) -> PyrefConfig:
     """
     if not config.passive_from_map:
         return config
-    from unismac.assets import load_passive_owners
-
-    passive = load_passive_owners(scenario.map_id)
-    if passive is None:
+    resolved = resolve_passive_owners(scenario.map_id, len(scenario.players))
+    if resolved is None:
         return config
-    if not passive:
-        return replace(config, auto_acquire_owners=None, retreat_owners=())
-    players = range(1, len(scenario.players) + 1)
-    active = tuple(p for p in players if p not in passive)
-    return replace(config, auto_acquire_owners=active, retreat_owners=tuple(passive))
+    acquire, retreat = resolved
+    return replace(config, auto_acquire_owners=acquire, retreat_owners=retreat)
+
+
+def _check_scenario(
+    scenario: Scenario, maps: Mapping[str, MapInfo], static_data: StaticData
+) -> MapInfo:
+    """Validate scenario contract and spawn bounds for `PyrefBackend`."""
+    info = validate_agent_scenario(scenario, maps, 'pyref')
+    x0, y0, x1, y1 = info.playable
+    for i, s in enumerate(scenario.spawns):
+        static_data.get(s.unit_type, s.variant)
+        if not (x0 <= s.x <= x1 and y0 <= s.y <= y1):
+            raise ContractError(
+                f'spawns[{i}] position ({s.x}, {s.y}) outside playable area {info.playable}'
+            )
+    return info
 
 
 def capabilities_for(config: PyrefConfig) -> Capabilities:
@@ -85,13 +89,13 @@ def capabilities_for(config: PyrefConfig) -> Capabilities:
     collision='hard'/'native' -> 'hard', abilities='heal' -> abilities=True (MedivacHeal 386
     only), visibility='sc2' -> fog=True and terrain_height=True (height-layered vision).
     """
-    return replace(
+    return capabilities_for_options(
         CAPABILITIES,
-        pathing=_PATHING_CAPABILITY[config.pathing],
-        collision=_COLLISION_CAPABILITY[config.collision],
-        abilities=config.abilities == 'heal',
-        fog=config.visibility == 'sc2',
-        terrain_height=config.visibility == 'sc2' or config.projectile_3d,
+        pathing=config.pathing,
+        collision=config.collision,
+        abilities=config.abilities,
+        visibility=config.visibility,
+        projectile_3d=config.projectile_3d,
     )
 
 
@@ -175,7 +179,7 @@ class PyrefBackend:
             )
 
         # Validate all scenarios before mutating state so failures leave no half-reset batch.
-        infos = [check_scenario(s, self._maps, self._static) for s in scenarios]
+        infos = [_check_scenario(s, self._maps, self._static) for s in scenarios]
         shapes = {(s.slot_count(), len(s.players)) for s in scenarios}
         if len(shapes) != 1:
             raise ContractError(

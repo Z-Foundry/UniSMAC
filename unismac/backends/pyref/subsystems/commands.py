@@ -556,3 +556,5 @@ def _mark_lag(sim: Sim, b: int, u: int) -> None:
 
 
 IMPLS = {'immediate': immediate, 'delayed': delayed}
+
+__all__ = ['IMPLS', 'check_command', 'delayed', 'immediate']

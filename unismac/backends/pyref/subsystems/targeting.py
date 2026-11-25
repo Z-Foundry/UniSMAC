@@ -1321,3 +1321,21 @@ def on_kill(
 
 
 IMPLS = {'basic': basic, 'sc2': sc2}
+
+__all__ = [
+    'IMPLS',
+    'after_vision',
+    'assist_flush',
+    'basic',
+    'in_weapon_range',
+    'kill_scan',
+    'late_scan',
+    'nearest_attacker',
+    'nearest_enemy_in_range',
+    'on_command',
+    'on_hit',
+    'on_kill',
+    'sc2',
+    'spawn_before',
+    'updates_before',
+]

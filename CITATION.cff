@@ -2,7 +2,7 @@ cff-version: 1.2.0
 title: "UniSMAC: Unified Multi-Backend StarCraft Multi-Agent Challenge"
 message: "If you use UniSMAC in your research, please cite this software."
 type: software
-version: "0.1.0"
+version: "0.1.1"
 date-released: "2026-11-25"
 license: "MIT"
 repository-code: "https://github.com/Z-Foundry/UniSMAC"

@@ -1,9 +1,9 @@
 """One-line backend switching example (`zgame` / `pyref` / live `sc2`).
 
 Uses `make_env(..., batch_size=1)` to obtain the PyMARL/EPyMARL-compatible
-`UnismacEnv` interface and runs a simple heuristic or random policy on any
-backend. Pass `--native-smac` to evaluate against the native 23-map SMAC
-trigger opponent on `zgame` or `pyref`.
+`UnismacEnv` interface and runs a simple greedy baseline on any backend.
+Pass `--native-smac` to evaluate against the native 23-map SMAC trigger
+opponent on `zgame` or `pyref`.
 
 Run:
     python examples/sc2_eval.py --backend zgame --scenario 8m --episodes 5
@@ -19,9 +19,8 @@ import sys
 
 import numpy as np
 
-from unismac import UnismacEnv, make_env
+from unismac import STANDARD_PROFILE, UnismacEnv, make_env
 from unismac.env import native_smac_overrides
-from unismac.profiles import STANDARD_PROFILE, merge_overrides, profile_overrides
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,9 +35,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--scenario', default='8m', help='Scenario name (default: 8m).')
     parser.add_argument(
         '--backend',
-        default='zgame',
-        choices=('zgame', 'pyref', 'sc2'),
-        help='Backend to run (default: zgame).',
+        default='auto',
+        choices=('auto', 'zgame', 'pyref', 'sc2'),
+        help='Backend to run (default: auto; prefers zgame when installed).',
     )
     parser.add_argument(
         '--profile',
@@ -60,27 +59,21 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_overrides(args: argparse.Namespace) -> dict[str, object] | None:
-    if args.backend == 'sc2':
-        return None
-    _, overrides = profile_overrides(args.profile)
-    if args.native_smac:
-        overrides = merge_overrides(
-            overrides,
-            native_smac_overrides(args.scenario, terrain_elevation='auto'),
-        )
-    return overrides
-
-
 def main() -> int:
     args = parse_args()
-    overrides = build_overrides(args)
+    profile = None if args.backend == 'sc2' else args.profile
+    overrides = (
+        native_smac_overrides(args.scenario, terrain_elevation='auto')
+        if (args.native_smac and args.backend != 'sc2')
+        else None
+    )
 
     try:
-        env = make_env(
+        ctx = make_env(
             args.preset,
             args.scenario,
             backend=args.backend,
+            profile=profile,
             batch_size=1,
             seed=args.seed,
             overrides=overrides,
@@ -97,11 +90,11 @@ def main() -> int:
             print(f"Failed to initialize backend '{args.backend}': {exc}", file=sys.stderr)
         return 1
 
-    assert isinstance(env, UnismacEnv)
-    try:
+    assert isinstance(ctx, UnismacEnv)
+    with ctx as env:
         info = env.get_env_info()
-        print(f'Preset/Scenario : {args.preset}/{args.scenario}')
-        print(f'Backend / Accel : {args.backend} / {env.vec.accel}')
+        print(f'Environment     : {env!r}')
+        print(f'Accel / Dual    : {env.accel} / {env.dual}')
         print(
             'Env info        : '
             f'n_agents={info["n_agents"]}, n_actions={info["n_actions"]}, '
@@ -136,8 +129,6 @@ def main() -> int:
             )
 
         print(f'Summary stats   : {env.get_stats()}')
-    finally:
-        env.close()
 
     return 0
 

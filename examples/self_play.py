@@ -1,7 +1,8 @@
 """Symmetric two-sided self-play example with UniSMAC.
 
 Controls both Player 1 (side=1) and Player 2 (side=2) with external policies
-using the unbiased `sc2-symmetric` profile and automatic mirror spawning.
+using `dual=True` (automatically selecting the unbiased `sc2-symmetric` profile
+and mirror spawning on mirrorable maps).
 
 Run:
     python examples/self_play.py
@@ -17,18 +18,12 @@ import time
 import numpy as np
 
 from unismac import make_vec_env
-from unismac.profiles import STANDARD_SYMMETRIC_PROFILE, merge_overrides, profile_overrides
 
 
 def sample_valid_actions(avail: np.ndarray, rng: np.random.Generator) -> np.ndarray:
-    """Uniformly sample one valid action per (env, agent) from an int64[B, A, K] mask."""
-    batch_size, n_agents, _ = avail.shape
-    actions = np.zeros((batch_size, n_agents), dtype=np.int64)
-    for b in range(batch_size):
-        for a in range(n_agents):
-            valid = np.flatnonzero(avail[b, a])
-            actions[b, a] = int(valid[rng.integers(len(valid))])
-    return actions
+    """Vectorized uniform sampling over valid actions (`avail: int64[B, A, K]`)."""
+    scores = (1.0 + rng.random(avail.shape)) * avail
+    return scores.argmax(axis=-1).astype(np.int64)
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,9 +38,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--scenario', default='2s3z', help='Scenario name (default: 2s3z).')
     parser.add_argument(
         '--backend',
-        default='zgame',
-        choices=('zgame', 'pyref'),
-        help='Simulation backend (default: zgame).',
+        default='auto',
+        choices=('auto', 'zgame', 'pyref'),
+        help='Simulation backend (default: auto; prefers zgame when installed).',
     )
     parser.add_argument(
         '--batch-size',
@@ -63,7 +58,7 @@ def parse_args() -> argparse.Namespace:
         '--threads',
         type=int,
         default=1,
-        help='ZGame worker threads (default: 1).',
+        help='ZGame worker threads (default: 1; used when backend is zgame).',
     )
     parser.add_argument('--seed', type=int, default=0, help='Base RNG seed (default: 0).')
     return parser.parse_args()
@@ -71,18 +66,16 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    _, sym = profile_overrides(STANDARD_SYMMETRIC_PROFILE)
-    overrides = merge_overrides(sym, {'opponent.kind': 'external'})
     kwargs = {'zgame_threads': args.threads} if args.backend == 'zgame' else {}
 
     try:
-        env = make_vec_env(
+        ctx = make_vec_env(
             args.preset,
             args.scenario,
             backend=args.backend,
+            dual=True,
             batch_size=args.batch_size,
             seed=args.seed,
-            overrides=overrides,
             **kwargs,
         )
     except ImportError as exc:
@@ -94,7 +87,7 @@ def main() -> int:
         )
         return 1
 
-    try:
+    with ctx as env:
         env.reset()
         obs_p1 = env.get_obs(side=1)
         obs_p2 = env.get_obs(side=2)
@@ -134,8 +127,7 @@ def main() -> int:
         sps = env_steps / max(elapsed, 1e-9)
         p1_na, p1_k = env.n_agents_for(1), env.n_actions_for(1)
         p2_na, p2_k = env.n_agents_for(2), env.n_actions_for(2)
-        print(f'Preset/Scenario : {args.preset}/{args.scenario}')
-        print(f'Backend / Accel : {args.backend} / {env.accel}')
+        print(f'Environment     : {env!r}')
         print(f'Dual / Mirror   : {env.dual} / {env.mirror!r}')
         print(f'Side 1 Obs      : {tuple(obs_p1.shape)} (n_agents={p1_na}, n_actions={p1_k})')
         print(f'Side 2 Obs      : {tuple(obs_p2.shape)} (n_agents={p2_na}, n_actions={p2_k})')
@@ -145,8 +137,6 @@ def main() -> int:
             f'draws={draws} (total={episodes})'
         )
         print(f'Cumulative R    : P1={p1_reward:.2f}, P2={p2_reward:.2f}')
-    finally:
-        env.close()
 
     return 0
 

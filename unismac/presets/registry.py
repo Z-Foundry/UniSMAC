@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -32,7 +33,7 @@ class Preset:
 PRESETS: dict[str, Preset] = {
     'smac': Preset('smac', 'smac', SMAC, 'Reproduces upstream SMAC (SC2 only)'),
     'smac-portable': Preset(
-        'smac-portable', 'smac', SMAC_PORTABLE, 'Cross-backend SMAC preset (pyref / SC2)'
+        'smac-portable', 'smac', SMAC_PORTABLE, 'Cross-backend SMAC preset (zgame / pyref / SC2)'
     ),
     'smacv2': Preset(
         'smacv2', 'smacv2', SMACV2, 'Reproduces upstream SMACv2 (SC2 only)', smacv2_overrides
@@ -41,7 +42,7 @@ PRESETS: dict[str, Preset] = {
         'smacv2-portable',
         'smacv2',
         SMACV2_PORTABLE,
-        'Cross-backend SMACv2 preset (pyref / SC2)',
+        'Cross-backend SMACv2 preset (zgame / pyref / SC2)',
         smacv2_portable_overrides,
     ),
     'smac-hard': Preset(
@@ -54,7 +55,7 @@ PRESETS: dict[str, Preset] = {
         'smac-hard-portable',
         'smac-hard',
         SMAC_HARD_PORTABLE,
-        'Cross-backend SMAC-Hard preset (pyref / SC2)',
+        'Cross-backend SMAC-Hard preset (zgame / pyref / SC2)',
     ),
 }
 
@@ -63,7 +64,9 @@ def get(name: str) -> Preset:
     try:
         return PRESETS[name]
     except KeyError:
-        raise KeyError(f'Unknown preset {name!r}; available: {", ".join(PRESETS)}') from None
+        matches = difflib.get_close_matches(name, list(PRESETS), n=3, cutoff=0.5)
+        hint = f'; did you mean {", ".join(repr(m) for m in matches)}?' if matches else ''
+        raise KeyError(f'Unknown preset {name!r}{hint} Available: {", ".join(PRESETS)}') from None
 
 
 def names() -> list[str]:

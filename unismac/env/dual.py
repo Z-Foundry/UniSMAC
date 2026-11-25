@@ -26,12 +26,12 @@ from typing import TYPE_CHECKING, Any, Literal
 import numpy as np
 
 from ..contract import CapabilityError, Command, MapInfo, Spawn, UnitOverride, WorldState
-from .actions import ActionSpace
-from .catalog import AllyTables, EnemyTables, UnitCatalog
-from .features import FeatureContext, ObsLayout, StateLayout
-from .reward import BattleReward
-from .spotter import Spotter
-from .units import Frame, UnitView
+from .semantics.actions import ActionSpace
+from .semantics.catalog import AllyTables, EnemyTables, UnitCatalog
+from .semantics.features import FeatureContext, ObsLayout, StateLayout
+from .semantics.reward import BattleReward
+from .semantics.spotter import Spotter
+from .semantics.units import Frame, UnitView
 
 if TYPE_CHECKING:
     from .config import EnvConfig

@@ -2,7 +2,7 @@
 
 `smac-hard` reproduces upstream SMAC-Hard `StarCraft2Env` defaults: a dual-agent session on
 `new_maps/<scenario>` where Player 2 is controlled by a decision-tree script
-(`unismac.env.scripted`, sampled each episode from the scenario's script pool). The only
+(`unismac.env.opponents.scripted`, sampled each episode from the scenario's script pool). The only
 intentional departure from upstream defaults is `use_ability`: upstream defaults to True, while
 here it defaults to False (SMAC-Hard paper experiments disabled abilities, which strongly affects
 training); enable via override `{'use_ability': True}`. That flag only controls the agent's
@@ -40,7 +40,7 @@ Upstream correspondence and deviations:
   previous episode ("ghost episodes").
 * **Ability segment**: upstream `agent_ability_dict` takes the first available ability returned
   by the engine; UniSMAC takes the smallest ID (each unit has at most one listed ability, so both
-  agree; see `unismac.env.abilities`).
+  agree; see `unismac.env.semantics.abilities`).
 * **`role_offset` quirk**: upstream `_init_ally_unit_types` assumes `*_RL` custom unit types and
   computes roles by offset from `min_unit_type`; on `new_maps` both sides use standard types, so
   the offset maps to wrong roles (e.g., on MMM, Marine cooldown cap becomes 25 and Medivac is not

@@ -21,6 +21,7 @@ branching on preset names. See field comments and `FLAT_NAMES` for details.
 from __future__ import annotations
 
 import dataclasses
+import difflib
 import types
 import typing
 from collections.abc import Mapping
@@ -155,9 +156,9 @@ class OpponentConfig:
     # opening_orders: player 2 issues a single opening attack-move toward player 1's
     # centroid and then relies on engine auto-acquire;
     # native_smac: player 2 reproduces opening orders and Medivac escort healing across
-    # all 23 classic SMAC maps (see unismac.env.smac_bot);
+    # all 23 classic SMAC maps (see unismac.env.opponents.smac_bot);
     # scripted: player 2 runs decision-tree scripts ported from SMAC-Hard
-    # (unismac.env.scripted), sampled from the scenario's script pool per episode;
+    # (unismac.env.opponents.scripted), sampled from the scenario's script pool per episode;
     # external: player 2 is controlled by caller-supplied enemy_actions in step()
     # (two-sided / self-play mode, see unismac.env.dual).
     kind: Literal['engine_ai', 'opening_orders', 'native_smac', 'scripted', 'external'] = (
@@ -166,8 +167,8 @@ class OpponentConfig:
     difficulty: Difficulty = 'very_hard'  # engine_ai difficulty (upstream difficulty='7')
     # Target point for opening_orders: ally_centroid = centroid of Player 1 spawn positions.
     target: Literal['ally_centroid'] = 'ally_centroid'
-    # Script pool for scripted opponents (names in unismac.env.scripted.SCRIPTS); None uses the
-    # scenario's upstream SCRIPT_DICT pool (duplicates act as sampling weights).
+    # Script pool for scripted opponents (names in unismac.env.opponents.scripted.SCRIPTS);
+    # None uses the scenario's upstream SCRIPT_DICT pool (duplicates act as sampling weights).
     scripts: tuple[str, ...] | None = None
     # Handling of scripted ability commands (Stim, Blink, Siege, etc. - not move/attack/stop):
     # issue forwards them (SC2); drop ignores them (pyref does not implement these abilities).
@@ -582,8 +583,11 @@ def _set(obj: Any, parts: list[str], value: Any, path: str) -> Any:
     names = {f.name for f in dataclasses.fields(obj)}
     head = parts[0]
     if head not in names:
+        candidates = sorted(names | (set(FLAT_NAMES) if isinstance(obj, EnvConfig) else set()))
+        matches = difflib.get_close_matches(head, candidates, n=3, cutoff=0.5)
+        hint = f'; did you mean {", ".join(repr(m) for m in matches)}?' if matches else ''
         raise ValueError(
-            f'Unknown config key {path!r} ({type(obj).__name__} has no field {head!r})'
+            f'Unknown config key {path!r} ({type(obj).__name__} has no field {head!r}{hint})'
         )
     hint = _resolve_hints(type(obj))[head]
     group = _group_class(hint)
@@ -604,6 +608,12 @@ def _set(obj: Any, parts: list[str], value: Any, path: str) -> Any:
         _check_type(path, hint, value)
         return dataclasses.replace(obj, **{head: value})
     if group is None:
+        if head == 'pyref_options':
+            subkey = '.'.join(parts[1:])
+            raise ValueError(
+                f'Unknown config key {path!r} ({head} is a dict, not a nested config group; '
+                f"pass {{'backend.pyref_options': {{{subkey!r}: ...}}}} instead)"
+            )
         raise ValueError(f'Unknown config key {path!r} ({head} is not a group)')
     return dataclasses.replace(obj, **{head: _set(cur, parts[1:], value, path)})
 

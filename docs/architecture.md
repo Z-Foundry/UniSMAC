@@ -1,6 +1,6 @@
 # UniSMAC Architecture
 
-[Back to README](../README.md) · Related: [Environment Interface](interface.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md)
+[Back to README](../README.md) · Related: [Code Map](code-map.md) · [Environment Interface](interface.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md)
 
 UniSMAC separates **benchmark environment semantics** (observations, global state, action masks, rewards, termination, procedural team generation, and opponents) from **simulation execution** through an explicit, vectorized backend contract. A single environment implementation runs unchanged across three interchangeable backends—**ZGame** (Rust), **PyRef** (pure Python/NumPy), and **SC2** (live StarCraft II)—inside the same Python process.
 
@@ -93,17 +93,17 @@ Rather than mirroring the wire-level `s2client` protobuf protocol—which requir
 
 `EnvConfig` (`unismac.env.config`) is a hierarchy of frozen dataclasses covering backend parameters, map selection, unit views, unit catalogs, visibility, action segments, observation/state features, rewards, termination, opponents, procedural capabilities, and upstream compatibility quirks.
 
-Configurations resolve strictly in four layers (later layers override earlier ones):
+Configurations resolve strictly in six layers (later layers override earlier ones):
 
 ```text
-Preset defaults  <  Scenario defaults  <  Preset scenario overrides  <  User overrides
+Preset defaults  <  Scenario defaults  <  Preset scenario overrides  <  Profile overrides  <  dual ('opponent.kind': 'external')  <  User overrides
 ```
 
-User overrides accept:
+When both `profile=` and `overrides=` supply `backend.pyref_options`, their dictionaries are deep-merged key-by-key so user options cleanly overlay the profile without clearing unrelated fields. User overrides accept:
 
 - **Dotted paths**: e.g., `{'opponent.kind': 'external', 'backend.step_mul': 8, 'termination.continuing_episode': True}`.
 - **Upstream flat names**: familiar SMAC/SMACv2/SMAC-Hard parameter names mapped cleanly into `EnvConfig`.
-- **Profile & helper dicts**: `unismac.profiles.profile_overrides('sc2-native')`, `merge_overrides(...)`, and `unismac.env.native_smac_overrides(...)`.
+- **Direct factory shortcuts & helper dicts**: `profile='sc2-native'`, `dual=True`, `unismac.profiles.profile_overrides(...)`, `merge_overrides(...)`, and `unismac.env.native_smac_overrides(...)`.
 
 Six core `PyrefConfig` fields (`abilities`, `spawn_energy`, `heal_autocast`, `commands`, `command_delay`, `move_lag`) are promoted to top-level `backend.pyref_*` fields on `EnvConfig.backend`; all remaining `PyrefConfig` options are passed via `backend.pyref_options` (deep-merged by key when using `merge_overrides`).
 
@@ -120,7 +120,7 @@ Six core `PyrefConfig` fields (`abilities`, `spawn_energy`, `heal_autocast`, `co
 | `SERVICES_VERSION` | `zgame._zgame.env` | `1` | Rust system-layer kernels and numerical services (`accel='services'`) |
 | `SEMANTICS` | `zgame._zgame.env` | `3` | Rust semantic-layer environment kernels (`accel='rust'`) |
 
-In addition, `accel='rust'` verifies `unismac/env/rust_manifest.json`, which records LF-normalized SHA-256 digests of the Python semantic-layer source files, the expected `_zgame.env.SEMANTICS` integer, and the supported NumPy version range (`>=1.26, <2.7`). If a developer modifies the Python semantic layer without updating the Rust kernels, `accel='auto'` automatically and safely falls back to `'services'` with a single `RuntimeWarning`.
+In addition, `accel='rust'` verifies `unismac/env/accel/rust_manifest.json`, which records LF-normalized SHA-256 digests of the Python semantic-layer source files, the expected `_zgame.env.SEMANTICS` integer, and the supported NumPy version range (`>=1.26, <2.7`). If a developer modifies the Python semantic layer without updating the Rust kernels, `accel='auto'` automatically and safely falls back to `'services'` with a single `RuntimeWarning`.
 
 For the Rust crate layout and internal engine architecture of `zgame`, see [`Z-Foundry/ZGame/docs/architecture.md`](https://github.com/Z-Foundry/ZGame/blob/main/docs/architecture.md).
 
@@ -130,19 +130,26 @@ For the Rust crate layout and internal engine architecture of `zgame`, see [`Z-F
 
 ```text
 unismac/
-├── __init__.py       # Top-level exports: make_env, make_vec_env, VecEnv, UnismacEnv, CONTRACT_VERSION
+├── __init__.py       # Top-level exports: make_env, make_vec_env, VecEnv, UnismacEnv, STANDARD_PROFILE, list_profiles, CONTRACT_VERSION
 ├── contract/         # Contract types, Backend Protocol, Capabilities, deterministic RNG spec
 ├── backends/
+│   ├── _common.py    # Shared passive-owner resolution & config serialization helpers (pyref + zgame)
 │   ├── zgame/        # ZgameBackend wrapper, build_info(), 4D compatibility verification
-│   ├── pyref/        # Pure-Python reference simulator and PyrefConfig (164 fields)
+│   ├── pyref/        # Pure-Python reference simulator, PyrefConfig (164 fields), options_meta.py,
+│   │                 # and subsystems/ (incl. 7-file native/{q12,wall,avoid,stop,air,steer,contact})
 │   └── sc2/          # Optional PySC2 backend (sessions, adapter, extract, restart, abilities)
 ├── assets/           # Bundled portable MapInfo, StaticData, measured params, map abilities
 ├── scenarios/        # 84-scenario registry across SMAC, SMACv2, and SMAC-Hard + spawn records
 ├── presets/          # smac, smacv2, smac-hard, and *-portable presets
-├── env/              # VecEnv, UnismacEnv, features, actions, rewards, opponents, dual, accel
+├── env/              # 5 core runtime files (__init__, config, core, single, dual) + 3 subpackages:
+│   ├── semantics/    # 14 pure environment-semantics modules (actions, features, reward, rng, ...)
+│   ├── opponents/    # Opponent protocol, smac_bot.py, and scripted/ (45 SMAC-Hard scripts)
+│   └── accel/        # Accel tier routing, classic.py, services.py, semantics.py, manifest.py + rust_manifest.json
 ├── profiles.py       # Public semantic profiles (sc2-native, sc2-explore, sc2-symmetric, ...)
-└── cli.py            # CLI entry point (info, list-scenarios, list-profiles, bench)
+└── cli.py            # CLI entry point (info, list-scenarios, list-profiles, show-profile, show-options, bench)
 ```
+
+For a step-by-step trace of `env.step()` and the full 1:1 module mirror against `zgame`, see [Architecture & Code Map](code-map.md). For contributor setup and test-suite structure, see [Contributing](../CONTRIBUTING.md).
 
 ---
 

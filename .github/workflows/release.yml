@@ -33,13 +33,15 @@ jobs:
           whls = glob.glob('dist/unismac-*.whl')
           assert len(whls) == 1, whls
           with zipfile.ZipFile(whls[0]) as zf:
-              bad = [n for n in zf.namelist() if n.endswith(('.so', '.pyd', '_zgame.build.json'))]
+              names = zf.namelist()
+              bad = [n for n in names if n.endswith(('.so', '.pyd', '_zgame.build.json'))]
               assert not bad, f'unexpected native artifacts in unismac wheel: {bad}'
+              assert 'unismac/env/accel/rust_manifest.json' in names, 'missing rust_manifest.json in wheel'
           print('Wheel audit clean:', whls[0])
           "
           uv venv .venv-test
           uv pip install --python .venv-test --find-links dist unismac "pytest>=8.0"
-          .venv-test/bin/python -m unismac.env.manifest
+          .venv-test/bin/python -m unismac.env.accel.manifest
           .venv-test/bin/python -m pytest tests -m "not sc2 and not slow"
       - uses: actions/upload-artifact@v4
         with:

@@ -706,3 +706,5 @@ def _cleanup(sim: Sim, b: int) -> None:
 
 
 IMPLS = {'standard': standard, 'sc2': sc2}
+
+__all__ = ['IMPLS', 'SLOW_ONSET', 'apply_hit', 'sc2', 'standard']

@@ -15,6 +15,7 @@ from unismac.contract import NO_SLOT, CommandKind
 
 from .. import rng
 from ..sim import Sim, f32, is_enemy, weapon_for
+from ._math import wrap_angle as _wrap_angle
 
 Q12_ONE = 4096
 LEASH_RESET_RADIUS_Q12 = 5 * Q12_ONE  # 5.0 tiles = 20480 Q12
@@ -61,10 +62,6 @@ def d2q(ax_q: int, ay_q: int, bx_q: int, by_q: int) -> int:
     dx = bx_q - ax_q
     dy = by_q - ay_q
     return ((dx * dx) >> 12) + ((dy * dy) >> 12)
-
-
-def _wrap_angle(a: float) -> float:
-    return (a + math.pi) % (2.0 * math.pi) - math.pi
 
 
 def is_strict_range_q12(sim: Sim, b: int, u: int, t: int, wi: int | None = None) -> bool:
@@ -651,3 +648,45 @@ def apply_retreat_flee(sim: Sim, b: int, victim: int, attacker: int) -> None:
         tx = f32(float(w.x[b, victim]) + dx * d)
         ty = f32(float(w.y[b, victim]) + dy * d)
         _apply(sim, b, victim, int(CommandKind.MOVE), NO_SLOT, tx, ty)
+
+
+__all__ = [
+    'ASSIST_TTL_LOOPS',
+    'ATTACK_TARGET_PRIORITY',
+    'HEAL_ABILITY_ID',
+    'LEASH_RESET_RADIUS_Q12',
+    'LEASH_RESET_RADIUS_SQ',
+    'Q12_ONE',
+    'THREAT_BIT',
+    'THREAT_TTL_LOOPS',
+    'add_threat_memory',
+    'apply_leash_return',
+    'apply_retreat_flee',
+    'assist_on_hit_q12',
+    'assist_throttle_record',
+    'base_score',
+    'body_radius_q12',
+    'compare_key',
+    'd2_raw',
+    'd2q',
+    'defer_key',
+    'is_in_acquire_q12',
+    'is_in_sight_q12',
+    'is_seen_by',
+    'is_strict_range_q12',
+    'order_before',
+    'phase_offset',
+    'pick_best_q12',
+    'pop_dead_order',
+    'q12_scalar',
+    'range_radius_q12',
+    'reconcile_pop_rescan',
+    'score_target_q12',
+    'should_skip_spatial_16loop',
+    'shuffle_unit_order',
+    'store_defer_target',
+    'target_armed',
+    'tick_native_timers',
+    'unit_xy_q12',
+    'weapon_busy',
+]

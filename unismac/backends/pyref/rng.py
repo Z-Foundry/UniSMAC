@@ -5,8 +5,8 @@ order: Philox4x64-10 uses key `(seed, stream_index)` and counter `(slot, game_lo
 taking the upper 53 bits of the first 64-bit output divided by 2^53 to yield a uniform float
 in [0, 1). Native backends reproduce the same values bit-for-bit from raw Philox bits.
 
-Kept separate from `unismac.env.rng`: the backend does not depend on the env layer, and both
-use distinct stream names.
+Kept separate from `unismac.env.semantics.rng`: the backend does not depend on the env layer,
+and both use distinct stream names.
 """
 
 from __future__ import annotations

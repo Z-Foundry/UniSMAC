@@ -1,6 +1,6 @@
 # Environment Interface
 
-[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md)
+[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Benchmarks & Presets](benchmarks.md) · [Profiles & Configuration](profiles-and-config.md)
 
 This document specifies the public Python API and CLI surface of `unismac`, including vectorized rollouts (`VecEnv`), PyMARL/EPyMARL compatibility (`UnismacEnv`), two-sided self-play, per-episode seeding and opponent control, acceleration tiers (`accel`), and native SMAC opponent configuration.
 
@@ -9,7 +9,7 @@ This document specifies the public Python API and CLI surface of `unismac`, incl
 ## 1. Factory Entry Points
 
 ```python
-from unismac import make_env, make_vec_env
+from unismac import STANDARD_PROFILE, list_profiles, make_env, make_vec_env
 ```
 
 ```python
@@ -17,7 +17,9 @@ make_vec_env(
     preset: str,
     scenario: str,
     *,
-    backend: Literal["sc2", "pyref", "zgame"] | Backend = "sc2",
+    backend: Literal["auto", "sc2", "pyref", "zgame"] | Backend | None = None,
+    profile: str | None = None,
+    dual: bool = False,
     batch_size: int = 1,
     seed: int | None = None,
     seeds: Sequence[int] | None = None,
@@ -29,9 +31,14 @@ make_vec_env(
 
 - **`make_vec_env(...)`** always returns a batched `VecEnv` (even when `batch_size=1`).
 - **`make_env(...)`** accepts the exact same arguments and returns a PyMARL/EPyMARL-compatible `UnismacEnv` when `batch_size == 1`, or a `VecEnv` when `batch_size > 1`.
-- **`backend`**: `'zgame'` (fast Rust native backend), `'pyref'` (pure-Python reference backend), `'sc2'` (live StarCraft II via optional `[sc2]` extra; `batch_size=1` only), or a pre-constructed `Backend` instance with matching `batch_size`.
+- **`profile`**: Named profile from `unismac.profiles` (e.g. `'sc2-native'`, `'sc2-explore'`, `'sc2-symmetric'`, `'sc2-live'`, `'minimal'`). Applied underneath user `overrides` with key-by-key deep merging of `backend.pyref_options`.
+- **`dual`**: Shorthand for two-sided self-play (`opponent.kind='external'`). When `dual=True` and `profile` is omitted, automatically selects `profile='sc2-symmetric'`.
+- **`backend`**:
+  - `None` (default): stays `'sc2'` when both `profile is None` and `dual is False` (100% v0.1.0 backward-compatible); when `profile` or `dual=True` is supplied, resolves `'sc2'` for `sc2`-family profiles or `'zgame'` (if installed, else `'pyref'`) for `pyref`-family profiles.
+  - `'auto'`: selects `'sc2'` for non-portable presets (`smac`, `smacv2`, `smac-hard`), or `'zgame'` (if installed, else `'pyref'`) for `*-portable` presets.
+  - Explicit `'zgame'`, `'pyref'`, `'sc2'` (`batch_size=1` only), or a pre-constructed `Backend` instance with matching `batch_size`. Conflicting combinations (such as `profile='sc2-live'` with `backend='zgame'`, or `dual=True` with an asymmetric profile) raise a descriptive `ValueError`.
 - **`zgame_threads`**: Rayon worker thread count for `backend='zgame'` (default `1`). Simulation results are bitwise identical regardless of thread count. Passing `zgame_threads` with any non-`zgame` backend raises `ValueError`.
-- **`overrides`**: Flat upstream parameter names, dotted `EnvConfig` paths (e.g. `'opponent.kind'`), or dicts returned by `profile_overrides(...)` / `native_smac_overrides(...)`.
+- **`overrides`**: Flat upstream parameter names, dotted `EnvConfig` paths (e.g. `'termination.continuing_episode'`), or dicts returned by `profile_overrides(...)` / `native_smac_overrides(...)`. Precedence: `preset < scenario defaults < preset scenario overrides < profile overrides < dual < user overrides`.
 
 ---
 
@@ -60,11 +67,11 @@ make_vec_env(
 | `frame` / `frame_for(side)` / `world` | Read-only views | Current `Frame` (ordered ally/enemy arrays) and raw `WorldState` snapshot. |
 | `get_env_info()` / `get_stats()` | `dict[str, Any]` | Standard environment metadata and cumulative win/game/timeout counters. |
 | `close_backend()` | `None` | Shuts down the underlying backend while preserving `VecEnv` config, episode counters, and seeds; the next full-batch `reset()` relaunches the backend. |
-| `close()` | `None` | Releases backend resources permanently. |
+| `close()` / `with env:` | `None` / context manager | Releases backend resources permanently; both `VecEnv` and `UnismacEnv` support `__enter__`/`__exit__` and informative `__repr__`. |
 
 ### `UnismacEnv` (PyMARL / EPyMARL Single-Env Wrapper)
 
-Returned by `make_env(..., batch_size=1)`. Mirrors the upstream `StarCraft2Env` (`MultiAgentEnv`) API:
+Returned by `make_env(..., batch_size=1)` (implemented in `unismac.env.single`, re-exported from `unismac` and `unismac.env.core`). Mirrors the upstream `StarCraft2Env` (`MultiAgentEnv`) API and supports `with make_env(...) as env:` and concise `__repr__`:
 
 - `reset() -> tuple[list[np.ndarray], np.ndarray]` (per-agent `float32[D]` list and `float32[S]` state)
 - `step(actions, enemy_actions=None) -> tuple[float, bool, dict[str, Any]]`
@@ -72,30 +79,33 @@ Returned by `make_env(..., batch_size=1)`. Mirrors the upstream `StarCraft2Env` 
 - `get_state(side=1)`, `get_state_size()`
 - `get_avail_actions(side=1)`, `get_avail_agent_actions(agent_id)`, `get_total_actions()`
 - `get_env_info()`, `get_stats()`, `get_capabilities()`, `get_cap_size()`, `seed()`, `close()`
-- `env.vec` exposes the underlying `batch_size=1` `VecEnv` (for inspecting `env.vec.accel`, `env.vec.mirror`, etc.).
+- Read-only `VecEnv` pass-throughs: `accel`, `dual`, `mirror`, `obs_layout`, `state_layout`, `n_agents_for(side)`, `n_actions_for(side)`, `alive(side=1)`
+- `env.vec` exposes the underlying `batch_size=1` `VecEnv`.
 
 ### Additional Public Exports
 
-- `unismac.CONTRACT_VERSION`: Backend contract version string (`"0.2"`).
+- `unismac`: `STANDARD_PROFILE` (`"sc2-native"`), `list_profiles`, `CONTRACT_VERSION` (`"0.2"`), `make_env`, `make_vec_env`, `VecEnv`, `UnismacEnv`.
 - `unismac.contract.CapabilityError`: Raised when a backend cannot satisfy a requested capability or option.
 - `unismac.profiles`: `PROFILES`, `PUBLIC_PROFILES`, `LEGACY_PROFILES`, `Profile`, `STANDARD_PROFILE`, `STANDARD_EXPLORE_PROFILE`, `STANDARD_SYMMETRIC_PROFILE`, `STANDARD_PROFILES`, `profile_overrides`, `merge_overrides`, `list_profiles`, `parse_pyref_options`, `pyref_extra_overrides`, `backend_label`.
+- `unismac.backends.pyref.options_meta`: `describe_pyref_options(group=None, zgame_only=False)` for browsing grouped `PyrefConfig` metadata.
 - `unismac.env`: `EnvConfig`, `build_config`, `resolve_config`, `apply_overrides`, `NativeSMACOpponent`, `SMAC_TRIGGER_SPECS`, `MULTI_LEVEL_SMAC_MAPS`, `native_smac_overrides`.
-- `unismac.env.scripted.script_pool(opponent_config, scenario)`: Returns the valid scripted-opponent pool for a SMAC-Hard scenario.
+- `unismac.env.opponents.scripted.script_pool(opponent_config, scenario)` (also re-exported from `unismac.env.opponents`): Returns the valid scripted-opponent pool for a SMAC-Hard scenario.
 
 ---
 
 ## 3. Two-Sided Self-Play Mode
 
-Enable two-sided control by combining the symmetric profile with `opponent.kind='external'`:
+Enable two-sided control with `dual=True` (which automatically sets `opponent.kind='external'` and `profile='sc2-symmetric'`):
 
 ```python
 from unismac import make_vec_env
-from unismac.profiles import merge_overrides, profile_overrides
 
-_, sym = profile_overrides("sc2-symmetric")
-overrides = merge_overrides(sym, {"opponent.kind": "external"})
-env = make_vec_env("smac-portable", "2s3z", backend="zgame", batch_size=32, seed=0, overrides=overrides)
+with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as env:
+    env.reset()
+    obs_p1, obs_p2 = env.get_obs(side=1), env.get_obs(side=2)
 ```
+
+(Equivalently, pass `profile="sc2-symmetric"` with `overrides={"opponent.kind": "external"}`.)
 
 Key semantics:
 
@@ -133,7 +143,7 @@ UniSMAC supports two mutually exclusive seeding modes:
 - **Per-environment seeds (`seeds=[s_0, ..., s_{B-1}]`)**: Environment `b` derives its RNG streams from `(seeds[b], stream, 0, episode, frame)` and its backend seed from `seeds[b]`. As a result, slot `b` in a `batch_size=K` vector environment is **bitwise identical** to a standalone `batch_size=1` environment initialized with `seed=seeds[b]`.
 - **Dynamic re-seeding**: `env.reset(env_ids, seeds=[...])` assigns new per-environment seeds to selected slots (passing `None` keeps a slot's existing seed), resets those slots' episode counters, and yields trajectories bitwise identical to freshly constructed `batch_size=1` environments.
 
-Named RNG streams (`unismac.env.rng.STREAMS`):
+Named RNG streams (`unismac.env.semantics.rng.STREAMS`):
 
 | Stream | Consumer |
 | --- | --- |
@@ -163,10 +173,11 @@ A configuration qualifies for `'rust'` when:
 
 1. Its base preset is `smac-portable`, `smacv2-portable`, or `smac-hard-portable` (plus scenario defaults/overrides).
 2. User overrides only touch `backend.*`, `termination.continuing_episode`, or symmetric two-sided `opponent.kind='external'` with a symmetric profile. (Modifying `opponent.scripts`, enabling `use_ability=True`, or using `opponent.kind='native_smac'` falls back cleanly to `'services'` under `accel='auto'`.)
-3. `unismac/env/rust_manifest.json` matches the local semantic-layer source hashes, `_zgame.env.SEMANTICS`, and the NumPy version range (`>=1.26, <2.7`). Maintainers modifying the Python semantic layer can re-verify and regenerate the manifest after passing parity tests with:
+3. `unismac/env/accel/rust_manifest.json` matches the local semantic-layer source hashes, `_zgame.env.SEMANTICS`, and the NumPy version range (`>=1.26, <2.7`). Maintainers modifying the Python semantic layer can re-verify and regenerate the manifest after passing parity tests with:
 
 ```bash
-python -m unismac.env.manifest --write
+python -m unismac.env.accel.manifest --list-locked         # Inspect locked files and VecEnv methods
+python -m unismac.env.accel.manifest --write --jobs 6      # Re-verify parity tests and refresh hashes
 ```
 
 ---
@@ -178,11 +189,15 @@ For users who want to evaluate or train against the exact map-trigger opening be
 ```python
 from unismac import make_env
 from unismac.env import native_smac_overrides
-from unismac.profiles import merge_overrides, profile_overrides
 
-_, base = profile_overrides("sc2-native")
-overrides = merge_overrides(base, native_smac_overrides("2c_vs_64zg", terrain_elevation="auto"))
-env = make_env("smac-portable", "2c_vs_64zg", backend="zgame", seed=0, overrides=overrides)
+with make_env(
+    "smac-portable",
+    "2c_vs_64zg",
+    profile="sc2-native",
+    seed=0,
+    overrides=native_smac_overrides("2c_vs_64zg", terrain_elevation="auto"),
+) as env:
+    obs, state = env.reset()
 ```
 
 `native_smac_overrides(...)` parameters:
@@ -214,22 +229,26 @@ Installing `unismac` provides the `unismac` command (also runnable as `python -m
 
 ```bash
 unismac --version
-unismac info
-unismac list-scenarios [--preset smac-portable]
+unismac info [--json]
+unismac list-scenarios [--preset smac-portable] [--runnable] [--details]
 unismac list-profiles [--all]
+unismac show-profile <name> [--raw]
+unismac show-options [--group <group>] [--tier <tier>] [--zgame-only]
 unismac bench [--preset smac-portable] [--scenario 8m] [--backend zgame] [--batch-size 64] [--steps 200]
 ```
 
 | Subcommand | Description |
 | --- | --- |
-| `unismac info` | Prints `unismac` version, `CONTRACT_VERSION`, `zgame` availability, four-dimensional compatibility constants, and build info. |
-| `unismac list-scenarios` | Lists registered scenarios (optionally filtered by `--preset`). |
+| `unismac info` | Prints `unismac` version, `CONTRACT_VERSION`, `$SC2PATH` detection, `zgame` availability, four-dimensional compatibility constants, and build info (pass `--json` for machine-readable output). |
+| `unismac list-scenarios` | Lists registered scenarios (filter with `--preset`; add `--runnable` for portable-runnable scenarios and `--details` for agent/enemy/limit/mirror/elevation metadata). |
 | `unismac list-profiles` | Lists the 5 public semantic profiles (pass `--all` to also show the 17 legacy reproducibility aliases). |
+| `unismac show-profile` | Displays a profile's concise non-default overrides relative to `PyrefConfig()` (pass `--raw` to show the full raw override dict). |
+| `unismac show-options` | Browses `PyrefConfig` options filtered by topic (`--group`), tier (`--tier`), and `zgame` support (`--zgame-only`). |
 | `unismac bench` | Runs a quick random-action rollout benchmark and prints effective `accel`, episodes finished, and steps/sec. |
 
 ---
 
 ## 10. Versioning Policy
 
-- **`unismac.__version__`** (initial public release **`0.1.0`**) tracks the environment interface under Semantic Versioning. During `0.x`, breaking API changes or default-trajectory changes bump the minor version (`0.y.0`), while bug fixes preserving public APIs and trajectories bump the patch version (`0.y.z`).
+- **`unismac.__version__`** (current release **`0.1.1`**, backward-compatible DX and architecture release over **`0.1.0`**) tracks the environment interface under Semantic Versioning. During `0.x`, breaking API changes or default-trajectory changes bump the minor version (`0.y.0`), while bug fixes and backward-compatible ergonomic/internal improvements preserving trajectories bump the patch version (`0.y.z`).
 - **`unismac.CONTRACT_VERSION`** (**`"0.2"`**) tracks the backend contract (`Backend`, `WorldState`, `Command`, `Scenario`, `Capabilities`) independently of environment-layer releases.

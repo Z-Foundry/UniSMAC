@@ -8,7 +8,7 @@ batch, while finished rows preserve their terminal snapshot and `step` returns `
 `terminated=True`, `info={}`) until reset via `reset(env_ids=[...])`.
 
 All randomness (SMACv2 procedural generation, `stochastic_attack`, spotter and obs order, scripted
-opponents) comes from counter-based Philox streams (`unismac.env.rng`) keyed by
+opponents) comes from counter-based Philox streams (`unismac.env.semantics.rng`) keyed by
 `(seed, stream, env_id)` with counter `(episode, frame)`: envs do not interfere with each other
 and episodes are reproducible under a fixed seed. `seed=None` draws system entropy once.
 
@@ -50,19 +50,24 @@ from ..contract import (
     WorldState,
 )
 from . import accel as accel_mod
-from . import rng as rng_mod
-from .abilities import choose_ability
-from .actions import ActionSpace, FovState
-from .catalog import MEDIVAC, AllyTables, EnemyTables, UnitCatalog
 from .config import EnvConfig
 from .dual import Seat, check_backend, check_config, mirror_axis, mirror_spawns
-from .features import FeatureContext, ObsLayout, StateLayout
-from .generators import DEFAULT_ALLY_POS, DEFAULT_ENEMY_POS, UNIT_NAMES, ScenarioGenerator
 from .opponents import make_opponent
-from .reward import BattleReward
-from .spotter import Spotter
-from .terrain import TerrainGrids
-from .units import Frame, UnitView
+from .semantics import rng as rng_mod
+from .semantics.abilities import choose_ability
+from .semantics.actions import ActionSpace, FovState
+from .semantics.catalog import MEDIVAC, AllyTables, EnemyTables, UnitCatalog
+from .semantics.features import FeatureContext, ObsLayout, StateLayout
+from .semantics.generators import (
+    DEFAULT_ALLY_POS,
+    DEFAULT_ENEMY_POS,
+    UNIT_NAMES,
+    ScenarioGenerator,
+)
+from .semantics.reward import BattleReward
+from .semantics.spotter import Spotter
+from .semantics.terrain import TerrainGrids
+from .semantics.units import Frame, UnitView
 
 __all__ = ['UnismacEnv', 'VecEnv', 'resolve_map_ids']
 
@@ -101,8 +106,8 @@ class VecEnv:
       (default) matches single-sided mode.
 
     `get_obs_size()` / `get_state_size()` return upstream-reported sizes (off by 1 when
-    `quirks.timestep_pad` is enabled; see `unismac.env.features`), while `obs_dim` / `state_dim`
-    are actual feature lengths.
+    `quirks.timestep_pad` is enabled; see `unismac.env.semantics.features`), while `obs_dim` /
+    `state_dim` are actual feature lengths.
 
     `seed` is batch-wide; `seeds` is per-env (length `batch_size`, mutually exclusive with `seed`).
     `accel` requests a tier (`'auto'`, `'python'`, `'services'`, `'rust'`); `self.accel` is the
@@ -470,7 +475,7 @@ class VecEnv:
 
     def rng_stream(self, name: str, env_id: int, frame: int = 0) -> np.random.Generator:
         """Return a fresh `Generator` for stream `name` of env `env_id`'s current episode at
-        `frame` (`unismac.env.rng.stream`).
+        `frame` (`unismac.env.semantics.rng.stream`).
 
         Per-env seeded envs use `(env_seed, name, 0, episode, frame)` (matching a `B=1` env);
         other envs use `(batch_seed, name, env_id, episode, frame)`.
@@ -520,8 +525,9 @@ class VecEnv:
 
         * `opponents`: script names aligned 1-to-1 with `env_ids` (or all envs), overriding the
           `opponent` stream draw (`None` draws normally). Valid only for `scripted` opponents;
-          names must belong to the scenario's script pool (`unismac.env.scripted.script_pool`),
-          else raises `ValueError`. Does not affect other envs or later episodes.
+          names must belong to the scenario's script pool
+          (`unismac.env.opponents.scripted.script_pool`), else raises `ValueError`. Does not
+          affect other envs or later episodes.
         * `seeds`: new per-env seeds aligned 1-to-1 with `env_ids`. Integer entries switch that
           env to the new per-env seed and reset its episode counter to 0 (matching a fresh `B=1`
           env); `None` entries keep their current seed.
@@ -885,90 +891,23 @@ class VecEnv:
     def close(self) -> None:
         self.backend.close()
 
+    def __enter__(self) -> VecEnv:
+        return self
 
-class UnismacEnv:
-    """Upstream `MultiAgentEnv` wrapper (`batch_size=1`), matching SMAC `StarCraft2Env`:
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
 
-    * `reset() -> (obs: list[float32[D]], state: float32[S])`
-    * `step(actions) -> (reward: float, terminated: bool, info: dict)`
-    * `get_obs() -> list[float32[D]]`, `get_avail_actions() -> list[list[int]]`, etc.
+    def __repr__(self) -> str:
+        extras = ''
+        if self.dual:
+            extras += ' dual=True'
+            if self.mirror is not None:
+                extras += f' mirror={self.mirror!r}'
+        return (
+            f'<VecEnv {self.spec.benchmark}/{self.spec.name} '
+            f'backend={self.backend.capabilities.name!r} batch_size={self.batch_size} '
+            f'accel={self.accel!r} n_agents={self.n_agents} n_actions={self.n_actions}{extras}>'
+        )
 
-    Call `reset()` before stepping again after termination (stepping while done returns
-    `0, True, {}`).
-    """
 
-    def __init__(self, vec: VecEnv) -> None:
-        if vec.batch_size != 1:
-            raise ValueError('UnismacEnv only wraps a VecEnv with batch_size=1')
-        self.vec = vec
-        self.n_agents = vec.n_agents
-        self.n_enemies = vec.n_enemies
-        self.episode_limit = vec.episode_limit
-        self.n_actions = vec.n_actions
-        self.config = vec.config
-
-    def reset(self) -> tuple[list[np.ndarray], np.ndarray]:
-        self.vec.reset()
-        return self.get_obs(), self.get_state()
-
-    def step(self, actions: Any, enemy_actions: Any = None) -> tuple[float, bool, dict[str, Any]]:
-        """Step the environment; `enemy_actions` provides Player 2 actions in two-sided mode."""
-        acts = np.array([int(a) for a in actions], dtype=np.int64)[None]
-        if enemy_actions is None:
-            reward, terminated, infos = self.vec.step(acts)
-        else:
-            acts2 = np.array([int(a) for a in enemy_actions], dtype=np.int64)[None]
-            reward, terminated, infos = self.vec.step(acts, acts2)
-        return float(reward[0]), bool(terminated[0]), infos[0]
-
-    def get_obs(self, side: int = 1) -> list[np.ndarray]:
-        return list(self.vec.get_obs(side)[0])
-
-    def get_obs_agent(self, agent_id: int) -> np.ndarray:
-        return self.vec.get_obs()[0, agent_id]
-
-    def get_state(self, side: int = 1) -> np.ndarray:
-        return self.vec.get_state(side)[0]
-
-    def get_avail_actions(self, side: int = 1) -> list[list[int]]:
-        return self.vec.get_avail_actions(side)[0].tolist()
-
-    def get_avail_agent_actions(self, agent_id: int) -> list[int]:
-        return self.vec.get_avail_actions()[0, agent_id].tolist()
-
-    def get_obs_size(self) -> int:
-        return self.vec.get_obs_size()
-
-    def get_state_size(self) -> int:
-        return self.vec.get_state_size()
-
-    def get_total_actions(self) -> int:
-        return self.vec.get_total_actions()
-
-    def get_env_info(self) -> dict[str, Any]:
-        return self.vec.get_env_info()
-
-    def get_cap_size(self) -> int:
-        return self.vec.get_cap_size()
-
-    def get_capabilities(self) -> np.ndarray:
-        return self.vec.get_capabilities()[0]
-
-    @property
-    def max_reward(self) -> float | None:
-        return self.vec.max_reward
-
-    def get_stats(self) -> dict[str, Any]:
-        return self.vec.get_stats()
-
-    def seed(self) -> int | None:
-        return self.vec.seed
-
-    def close(self) -> None:
-        self.vec.close()
-
-    def render(self, mode: str = 'human') -> None:
-        raise NotImplementedError('Rendering is not supported in unismac')
-
-    def save_replay(self) -> None:
-        raise NotImplementedError('Saving replays is not supported in unismac')
+from .single import UnismacEnv  # noqa: E402

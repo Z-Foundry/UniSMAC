@@ -454,6 +454,15 @@ class PyrefConfig:
     native_loop_order: bool = False
 
     def __post_init__(self) -> None:
+        self._validate_collision()
+        self._validate_steering_and_pin()
+        self._validate_native()
+        self._validate_targeting()
+        self._validate_attack_and_damage()
+        self._validate_abilities_and_visibility()
+        self._validate_commands_and_motion()
+
+    def _validate_collision(self) -> None:
         if self.collision_iterations < 1:
             raise ValueError(f'collision_iterations must be >= 1, got {self.collision_iterations}')
         if not 0.0 <= self.idle_push_share <= 1.0:
@@ -467,6 +476,23 @@ class PyrefConfig:
             )
         if not 0.5 <= self.mover_push_cap <= 1.0:
             raise ValueError(f'mover_push_cap must be in [0.5, 1], got {self.mover_push_cap}')
+        if not 0.0 < self.mover_push_power < math.inf:
+            raise ValueError(
+                f'mover_push_power must be positive and finite, got {self.mover_push_power}'
+            )
+        if self.crowd_loops < 1:
+            raise ValueError(f'crowd_loops must be >= 1, got {self.crowd_loops}')
+        contact = self.collision in ('hard', 'native')
+        if self.crowd_cover and not contact:
+            raise ValueError("crowd_cover requires collision='hard' or 'native'")
+        if self.push_clearance and (not contact or self.pathing != 'navmesh'):
+            raise ValueError(
+                "push_clearance requires collision='hard' or 'native' and pathing='navmesh'"
+            )
+        if self.arrival_clears_waypoint and not contact:
+            raise ValueError("arrival_clears_waypoint requires collision='hard' or 'native'")
+
+    def _validate_steering_and_pin(self) -> None:
         if self.avoid_share not in ('full', 'speed'):
             raise ValueError(f"avoid_share must be 'full' or 'speed', got {self.avoid_share!r}")
         if not 0.0 < self.avoid_share_power < math.inf:
@@ -479,86 +505,12 @@ class PyrefConfig:
             p = getattr(self, name)
             if p is not None and not 0.0 < p < math.inf:
                 raise ValueError(f'{name} must be None or positive and finite, got {p}')
-        if not 0.0 < self.mover_push_power < math.inf:
-            raise ValueError(
-                f'mover_push_power must be positive and finite, got {self.mover_push_power}'
-            )
-        if self.spawn_energy is not None and self.spawn_energy < 0:
-            raise ValueError(f'spawn_energy must be >= 0, got {self.spawn_energy}')
-        if self.crowd_loops < 1:
-            raise ValueError(f'crowd_loops must be >= 1, got {self.crowd_loops}')
-        contact = self.collision in ('hard', 'native')
-        if self.crowd_cover and not contact:
-            raise ValueError("crowd_cover requires collision='hard' or 'native'")
-        if self.push_clearance and (not contact or self.pathing != 'navmesh'):
-            raise ValueError(
-                "push_clearance requires collision='hard' or 'native' and pathing='navmesh'"
-            )
-        if self.arrival_clears_waypoint and not contact:
-            raise ValueError("arrival_clears_waypoint requires collision='hard' or 'native'")
-        for name in ('native_relation', 'native_enemy_relation'):
-            if getattr(self, name) not in (0, 1):
-                raise ValueError(f'{name} must be 0 or 1, got {getattr(self, name)!r}')
-        if not (isinstance(self.native_idle_share, int) and 0 <= self.native_idle_share <= 4096):
-            raise ValueError(
-                f'native_idle_share must be an int in [0, 4096], got {self.native_idle_share!r}'
-            )
-        if self.native_speed_rule not in ('table', 'faster_yields', 'slower_yields'):
-            raise ValueError(
-                "native_speed_rule must be 'table', 'faster_yields', or 'slower_yields', "
-                f'got {self.native_speed_rule!r}'
-            )
-        if self.native_avoid and self.steering != 'native':
-            raise ValueError("native_avoid requires steering='native'")
-        if self.native_second_pass not in ('contacted', 'none'):
-            raise ValueError(
-                f"native_second_pass must be 'contacted' or 'none', got {self.native_second_pass!r}"
-            )
-        if self.native_share_rule not in ('legacy', 'priority_tree'):
-            raise ValueError(
-                "native_share_rule must be 'legacy' or 'priority_tree', "
-                f'got {self.native_share_rule!r}'
-            )
-        if self.native_share_rule != 'legacy' and self.collision != 'native':
-            raise ValueError("native_share_rule='priority_tree' requires collision='native'")
-        if self.native_batch_flags and self.collision != 'native':
-            raise ValueError("native_batch_flags requires collision='native'")
-        if self.native_nbr_order not in ('slot', 'quantized'):
-            raise ValueError(
-                f"native_nbr_order must be 'slot' or 'quantized', got {self.native_nbr_order!r}"
-            )
-        if self.native_nbr_order != 'slot' and self.collision != 'native':
-            raise ValueError("native_nbr_order='quantized' requires collision='native'")
-        if self.native_steer_avoid and self.steering != 'native':
-            raise ValueError("native_steer_avoid requires steering='native'")
-        if self.native_steer_avoid and self.native_avoid:
-            raise ValueError('native_steer_avoid cannot be combined with native_avoid')
-        if self.native_stop and (self.steering != 'native' or self.collision != 'native'):
-            raise ValueError("native_stop requires steering='native' and collision='native'")
-        if self.native_air_sep and (self.steering != 'native' or self.collision != 'native'):
-            raise ValueError("native_air_sep requires steering='native' and collision='native'")
-        if self.native_wall_clearance and self.collision != 'native':
-            raise ValueError("native_wall_clearance requires collision='native'")
-        if self.native_wall_clearance and self.push_clearance:
-            raise ValueError('native_wall_clearance cannot be combined with push_clearance')
         if self.pin_pair_share not in ('half', 'younger'):
             raise ValueError(
                 f"pin_pair_share must be 'half' or 'younger', got {self.pin_pair_share!r}"
             )
         if self.pin_pair_share != 'half' and not self.pin_engaged:
             raise ValueError("pin_pair_share='younger' requires pin_engaged")
-        if self.command_delay < 0:
-            raise ValueError(f'command_delay must be >= 0, got {self.command_delay}')
-        if self.acquire_start_loop < 0:
-            raise ValueError(f'acquire_start_loop must be >= 0, got {self.acquire_start_loop}')
-        if self.scan_period < 1:
-            raise ValueError(f'scan_period must be >= 1, got {self.scan_period}')
-        if self.rl_turn not in ('cap', 'curve'):
-            raise ValueError(f"rl_turn must be 'cap' or 'curve', got {self.rl_turn!r}")
-        if self.range_radius not in ('observed', 'measured'):
-            raise ValueError(
-                f"range_radius must be 'observed' or 'measured', got {self.range_radius!r}"
-            )
         if self.pin_slide_mode not in ('any', 'pinned'):
             raise ValueError(
                 f"pin_slide_mode must be 'any' or 'pinned', got {self.pin_slide_mode!r}"
@@ -613,6 +565,81 @@ class PyrefConfig:
             raise ValueError('pin_sidestep_tangent requires pin_sidestep')
         if self.pin_tie_grid and (not avoid or not self.pin_engaged):
             raise ValueError("pin_tie_grid requires steering='sc2_avoid' and pin_engaged")
+
+    def _validate_native(self) -> None:
+        for name in ('native_relation', 'native_enemy_relation'):
+            if getattr(self, name) not in (0, 1):
+                raise ValueError(f'{name} must be 0 or 1, got {getattr(self, name)!r}')
+        if not (isinstance(self.native_idle_share, int) and 0 <= self.native_idle_share <= 4096):
+            raise ValueError(
+                f'native_idle_share must be an int in [0, 4096], got {self.native_idle_share!r}'
+            )
+        if self.native_speed_rule not in ('table', 'faster_yields', 'slower_yields'):
+            raise ValueError(
+                "native_speed_rule must be 'table', 'faster_yields', or 'slower_yields', "
+                f'got {self.native_speed_rule!r}'
+            )
+        if self.native_avoid and self.steering != 'native':
+            raise ValueError("native_avoid requires steering='native'")
+        if self.native_second_pass not in ('contacted', 'none'):
+            raise ValueError(
+                f"native_second_pass must be 'contacted' or 'none', got {self.native_second_pass!r}"
+            )
+        if self.native_share_rule not in ('legacy', 'priority_tree'):
+            raise ValueError(
+                "native_share_rule must be 'legacy' or 'priority_tree', "
+                f'got {self.native_share_rule!r}'
+            )
+        if self.native_share_rule != 'legacy' and self.collision != 'native':
+            raise ValueError("native_share_rule='priority_tree' requires collision='native'")
+        if self.native_batch_flags and self.collision != 'native':
+            raise ValueError("native_batch_flags requires collision='native'")
+        if self.native_nbr_order not in ('slot', 'quantized'):
+            raise ValueError(
+                f"native_nbr_order must be 'slot' or 'quantized', got {self.native_nbr_order!r}"
+            )
+        if self.native_nbr_order != 'slot' and self.collision != 'native':
+            raise ValueError("native_nbr_order='quantized' requires collision='native'")
+        if self.native_steer_avoid and self.steering != 'native':
+            raise ValueError("native_steer_avoid requires steering='native'")
+        if self.native_steer_avoid and self.native_avoid:
+            raise ValueError('native_steer_avoid cannot be combined with native_avoid')
+        if self.native_stop and (self.steering != 'native' or self.collision != 'native'):
+            raise ValueError("native_stop requires steering='native' and collision='native'")
+        if self.native_air_sep and (self.steering != 'native' or self.collision != 'native'):
+            raise ValueError("native_air_sep requires steering='native' and collision='native'")
+        if self.native_wall_clearance and self.collision != 'native':
+            raise ValueError("native_wall_clearance requires collision='native'")
+        if self.native_wall_clearance and self.push_clearance:
+            raise ValueError('native_wall_clearance cannot be combined with push_clearance')
+        if self.native_assist_on_hit and (
+            self.targeting != 'sc2' or self.damage != 'sc2' or not self.hit_assist
+        ):
+            raise ValueError(
+                "native_assist_on_hit requires targeting='sc2', damage='sc2', and hit_assist=True"
+            )
+        if self.native_backswing and (
+            self.targeting != 'sc2' or self.attack != 'sc2' or self.damage != 'sc2'
+        ):
+            raise ValueError(
+                "native_backswing requires targeting='sc2', attack='sc2', and damage='sc2'"
+            )
+        if self.native_retarget and (self.targeting != 'sc2' or not self.retarget):
+            raise ValueError("native_retarget requires targeting='sc2' and retarget=True")
+        if self.native_scan_cadence and self.targeting != 'sc2':
+            raise ValueError("native_scan_cadence requires targeting='sc2'")
+        if self.native_loop_order and self.damage != 'sc2':
+            raise ValueError("native_loop_order requires damage='sc2'")
+
+    def _validate_targeting(self) -> None:
+        if self.acquire_start_loop < 0:
+            raise ValueError(f'acquire_start_loop must be >= 0, got {self.acquire_start_loop}')
+        if self.scan_period < 1:
+            raise ValueError(f'scan_period must be >= 1, got {self.scan_period}')
+        if self.range_radius not in ('observed', 'measured'):
+            raise ValueError(
+                f"range_radius must be 'observed' or 'measured', got {self.range_radius!r}"
+            )
         if self.scan_phase not in ('global', 'per_unit', 'tag_order', 'tag_rotate'):
             raise ValueError(
                 "scan_phase must be 'global', 'per_unit', 'tag_order', or 'tag_rotate', "
@@ -622,12 +649,6 @@ class PyrefConfig:
             raise ValueError(
                 f'scan_phase={self.scan_phase!r} requires scan_period == 8, got {self.scan_period}'
             )
-        if self.reveal_loops < 0:
-            raise ValueError(f'reveal_loops must be >= 0, got {self.reveal_loops}')
-        if self.lost_vision not in ('immediate', 'sc2'):
-            raise ValueError(f"lost_vision must be 'immediate' or 'sc2', got {self.lost_vision!r}")
-        if self.lost_vision == 'sc2' and self.visibility != 'sc2':
-            raise ValueError("lost_vision='sc2' requires visibility='sc2'")
         if self.retarget_busy < 0:
             raise ValueError(f'retarget_busy must be >= 0, got {self.retarget_busy}')
         if self.retarget_ready_margin < 0:
@@ -656,10 +677,6 @@ class PyrefConfig:
             raise ValueError(
                 f"retarget_lock must be 'new', 'previous', or 'none', got {self.retarget_lock!r}"
             )
-        if self.lost_vision_giveup < 1:
-            raise ValueError(f'lost_vision_giveup must be >= 1, got {self.lost_vision_giveup}')
-        if self.visibility == 'sc2' and self.targeting != 'sc2':
-            raise ValueError("visibility='sc2' requires targeting='sc2'")
         if self.kill_rescan_delay < 0:
             raise ValueError(f'kill_rescan_delay must be >= 0, got {self.kill_rescan_delay}')
         if self.kill_rescan_delay == 0 and self.targeting != 'sc2':
@@ -680,8 +697,6 @@ class PyrefConfig:
             )
         if self.hit_assist_pick != 'first' and not self.hit_assist:
             raise ValueError("hit_assist_pick='nearest' requires hit_assist")
-        if self.heal_pick not in ('life', 'fraction'):
-            raise ValueError(f"heal_pick must be 'life' or 'fraction', got {self.heal_pick!r}")
         if self.hit_assist_tie not in ('first', 'spawn_order'):
             raise ValueError(
                 f"hit_assist_tie must be 'first' or 'spawn_order', got {self.hit_assist_tie!r}"
@@ -706,6 +721,8 @@ class PyrefConfig:
             raise ValueError("acquire_center requires targeting='sc2'")
         if self.reissue_ends_wait and not self.reissue:
             raise ValueError('reissue_ends_wait requires reissue')
+
+    def _validate_attack_and_damage(self) -> None:
         lock = tuple((int(t), int(n)) for t, n in self.chase_lock)
         if any(n < 0 for _, n in lock):
             raise ValueError(f'chase_lock loop counts must be >= 0, got {self.chase_lock}')
@@ -720,6 +737,28 @@ class PyrefConfig:
             raise ValueError("attack_commit requires attack='sc2' and damage='sc2'")
         if self.attack_on_arrival and self.attack != 'sc2':
             raise ValueError("attack_on_arrival requires attack='sc2'")
+
+    def _validate_abilities_and_visibility(self) -> None:
+        if self.spawn_energy is not None and self.spawn_energy < 0:
+            raise ValueError(f'spawn_energy must be >= 0, got {self.spawn_energy}')
+        if self.reveal_loops < 0:
+            raise ValueError(f'reveal_loops must be >= 0, got {self.reveal_loops}')
+        if self.lost_vision not in ('immediate', 'sc2'):
+            raise ValueError(f"lost_vision must be 'immediate' or 'sc2', got {self.lost_vision!r}")
+        if self.lost_vision == 'sc2' and self.visibility != 'sc2':
+            raise ValueError("lost_vision='sc2' requires visibility='sc2'")
+        if self.lost_vision_giveup < 1:
+            raise ValueError(f'lost_vision_giveup must be >= 1, got {self.lost_vision_giveup}')
+        if self.visibility == 'sc2' and self.targeting != 'sc2':
+            raise ValueError("visibility='sc2' requires targeting='sc2'")
+        if self.heal_pick not in ('life', 'fraction'):
+            raise ValueError(f"heal_pick must be 'life' or 'fraction', got {self.heal_pick!r}")
+
+    def _validate_commands_and_motion(self) -> None:
+        if self.command_delay < 0:
+            raise ValueError(f'command_delay must be >= 0, got {self.command_delay}')
+        if self.rl_turn not in ('cap', 'curve'):
+            raise ValueError(f"rl_turn must be 'cap' or 'curve', got {self.rl_turn!r}")
         if self.move_lag not in (0, 1):
             raise ValueError(f'move_lag must be 0 or 1, got {self.move_lag}')
         if self.move_lag and (self.commands != 'delayed' or self.command_delay < 1):
@@ -728,21 +767,6 @@ class PyrefConfig:
             raise ValueError(f"spawn_facing must be 'zero' or 'random', got {self.spawn_facing!r}")
         if self.commands == 'immediate' and self.command_delay != 0:
             raise ValueError("command_delay > 0 requires commands='delayed'")
-        if self.native_assist_on_hit and (
-            self.targeting != 'sc2' or self.damage != 'sc2' or not self.hit_assist
-        ):
-            raise ValueError(
-                "native_assist_on_hit requires targeting='sc2', damage='sc2', and hit_assist=True"
-            )
-        if self.native_backswing and (
-            self.targeting != 'sc2' or self.attack != 'sc2' or self.damage != 'sc2'
-        ):
-            raise ValueError(
-                "native_backswing requires targeting='sc2', attack='sc2', and damage='sc2'"
-            )
-        if self.native_retarget and (self.targeting != 'sc2' or not self.retarget):
-            raise ValueError("native_retarget requires targeting='sc2' and retarget=True")
-        if self.native_scan_cadence and self.targeting != 'sc2':
-            raise ValueError("native_scan_cadence requires targeting='sc2'")
-        if self.native_loop_order and self.damage != 'sc2':
-            raise ValueError("native_loop_order requires damage='sc2'")
+
+
+__all__ = ['PyrefConfig']

@@ -29,7 +29,7 @@ import math
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import numpy as np
 
@@ -47,6 +47,16 @@ from unismac.contract import (
     Scenario,
     StaticData,
     WorldState,
+)
+
+from .._common import (
+    PassiveOwners as _PassiveOwners,
+)
+from .._common import (
+    capabilities_for_options,
+    collect_attributes,
+    resolve_passive_owners,
+    validate_agent_scenario,
 )
 
 ENGINE_SCHEMA_VERSION = 1
@@ -67,7 +77,6 @@ CAPABILITIES = Capabilities(
 )
 
 _MASK64 = (1 << 64) - 1
-_PassiveOwners = tuple[tuple[int, ...] | None, tuple[int, ...]]
 
 
 def _base_owners(options: Mapping[str, Any]) -> _PassiveOwners:
@@ -90,15 +99,8 @@ def _passive_owners(
     n_players: int,
 ) -> _PassiveOwners:
     """Resolve `(auto_acquire_owners, retreat_owners)` from `assets/map_abilities.json`."""
-    from unismac.assets import load_passive_owners
-
-    passive = load_passive_owners(map_id)
-    if passive is None:
-        return base_owners
-    if not passive:
-        return None, ()
-    active = tuple(p for p in range(1, n_players + 1) if p not in passive)
-    return active, tuple(passive)
+    resolved = resolve_passive_owners(map_id, n_players)
+    return base_owners if resolved is None else resolved
 
 
 def _options_with_owners(
@@ -202,90 +204,162 @@ def config_options(config: object | Mapping[str, Any] | None) -> dict[str, Any]:
     )
 
 
-def collect_attributes(static_data: StaticData) -> tuple[str, ...]:
-    """Collect and sort all unit/weapon attribute names for bitmask indexing."""
-    names: set[str] = set()
-    for spec in static_data.units.values():
-        names.update(spec.attributes)
-        for weapon in spec.weapons:
-            names.update(name for name, _ in weapon.bonus)
-    if len(names) > 31:
-        raise ContractError(f'Attribute count {len(names)} exceeds 31-bit mask capacity')
-    return tuple(sorted(names))
-
-
 def capabilities_for(options: Mapping[str, Any]) -> Capabilities:
     """Derive effective `Capabilities` from non-default backend options."""
-    caps = CAPABILITIES
-    if options.get('pathing', 'straight') == 'navmesh':
-        caps = dataclasses.replace(caps, pathing='grid')
-    if options.get('collision', 'none') in ('hard', 'native'):
-        caps = dataclasses.replace(caps, collision='hard')
-    if options.get('abilities', 'none') == 'heal':
-        caps = dataclasses.replace(caps, abilities=True)
-    fog = options.get('visibility', 'full') == 'sc2'
-    if fog or bool(options.get('projectile_3d', False)):
-        caps = dataclasses.replace(caps, fog=fog, terrain_height=True)
-    return caps
+    return capabilities_for_options(
+        CAPABILITIES,
+        pathing=str(options.get('pathing', 'straight')),
+        collision=str(options.get('collision', 'none')),
+        abilities=str(options.get('abilities', 'none')),
+        visibility=str(options.get('visibility', 'full')),
+        projectile_3d=bool(options.get('projectile_3d', False)),
+        grid_pathing=('navmesh',),
+    )
 
 
-_MOTION_KEYS = (
-    ('acceleration', math.inf),
-    ('deceleration', math.inf),
-    ('turn_rate', math.inf),
-    ('heading_blend', math.nan),
-)
-
-_COMBAT_FLOAT_KEYS = (
-    ('attack_arc', math.inf),
-    ('cooldown_jitter_min', 0.0),
-    ('cooldown_jitter_max', 0.0),
-    ('projectile_speed', math.nan),
-    ('projectile_offset', 0.0),
-    ('projectile_instant_edge', math.nan),
-    ('hit_slow_factor', 1.0),
-    ('shield_regen_rate', 0.0),
-    ('health_regen_rate', 0.0),
-    ('turret_rate', math.nan),
-    ('min_range', 0.0),
-    ('charge_speed', math.nan),
-    ('charge_range_small', 0.0),
-    ('charge_range_large', 0.0),
-    ('charge_small_radius', 0.0),
-    ('charge_bonus', 0.0),
-)
-_COMBAT_INT_KEYS = (
-    ('attack_windup', 0),
-    ('projectile_delay', 0),
-    ('attack_spacing', 0),
-    ('hit_slow_loops', 0),
-    ('shield_regen_delay', 0),
-    ('follow_lock', -1),
-    ('charge_max_loops', 0),
-    ('charge_cooldown', 0),
-)
-_COMBAT_AIR_KEYS = (
-    ('projectile_speed_air', float),
-    ('projectile_delay_air', int),
-    ('projectile_offset_air', float),
-)
 _SPLASH_RINGS = 3
 SUICIDE_RANGE_STRUCTURE = 0.17
 
 
-def _combat_dict(measured: Mapping[str, Any], attributes: tuple[str, ...]) -> dict[str, Any]:
+class _WeaponDict(TypedDict):
+    target: str
+    damage: float
+    attacks: int
+    range: float
+    cooldown: float
+    bonus: list[tuple[int, float]]
+
+
+class _SuicideDict(TypedDict):
+    damage: float
+    trigger_range: float
+    bonus: list[tuple[int, float]]
+    damage_structure: float
+    range_structure: float
+
+
+class _CombatRequired(TypedDict):
+    attack_arc: float
+    cooldown_jitter_min: float
+    cooldown_jitter_max: float
+    projectile_speed: float
+    projectile_offset: float
+    projectile_instant_edge: float
+    hit_slow_factor: float
+    shield_regen_rate: float
+    health_regen_rate: float
+    turret_rate: float
+    min_range: float
+    charge_speed: float
+    charge_range_small: float
+    charge_range_large: float
+    charge_small_radius: float
+    charge_bonus: float
+    attack_windup: int
+    projectile_delay: int
+    attack_spacing: int
+    hit_slow_loops: int
+    shield_regen_delay: int
+    follow_lock: int
+    charge_max_loops: int
+    charge_cooldown: int
+    projectile_to_center: bool
+    splash_rings: list[tuple[float, float]]
+    splash_friendly: bool
+    barrier_absorb: float
+    barrier_duration: int
+    barrier_cooldown: int
+
+
+class _CombatDict(_CombatRequired, total=False):
+    projectile_speed_air: float
+    projectile_delay_air: int
+    projectile_offset_air: float
+    splash_perp: tuple[float, float]
+    splash_forward: tuple[float, float]
+    suicide: _SuicideDict
+
+
+class _UnitRequired(_CombatRequired):
+    unit_type: int
+    variant: int
+    radius: float
+    health_max: float
+    shield_max: float
+    energy_max: float
+    armor: float
+    movement_speed: float
+    sight_range: float
+    is_flying: bool
+    attr_mask: int
+    facing_rate: float
+    acceleration: float
+    deceleration: float
+    turn_rate: float
+    heading_blend: float
+    shield_regen_fallback: bool
+    health_regen_fallback: bool
+    biological: bool
+    structure: bool
+    weapons: list[_WeaponDict]
+
+
+class _UnitDict(_UnitRequired, total=False):
+    projectile_speed_air: float
+    projectile_delay_air: int
+    projectile_offset_air: float
+    splash_perp: tuple[float, float]
+    splash_forward: tuple[float, float]
+    suicide: _SuicideDict
+    range_radius: float
+
+
+def _combat_dict(measured: Mapping[str, Any], attributes: tuple[str, ...]) -> _CombatDict:
     """Serialize combat, splash, suicide, and barrier parameters for the native engine."""
     m = measured
-    out: dict[str, Any] = {k: float(m.get(k, d)) for k, d in _COMBAT_FLOAT_KEYS}
-    out.update({k: int(m.get(k, d)) for k, d in _COMBAT_INT_KEYS})
-    out.update({k: cast(m[k]) for k, cast in _COMBAT_AIR_KEYS if k in m})
-    out['projectile_to_center'] = bool(m.get('projectile_to_center', 0))
     rings = sorted(
         (m[f'splash_radial_radius_{k}'], m.get(f'splash_radial_fraction_{k}', 1.0))
         for k in range(1, _SPLASH_RINGS + 1)
         if f'splash_radial_radius_{k}' in m
     )
-    out['splash_rings'] = [(float(r), float(f)) for r, f in rings]
+    out: _CombatDict = {
+        'attack_arc': float(m.get('attack_arc', math.inf)),
+        'cooldown_jitter_min': float(m.get('cooldown_jitter_min', 0.0)),
+        'cooldown_jitter_max': float(m.get('cooldown_jitter_max', 0.0)),
+        'projectile_speed': float(m.get('projectile_speed', math.nan)),
+        'projectile_offset': float(m.get('projectile_offset', 0.0)),
+        'projectile_instant_edge': float(m.get('projectile_instant_edge', math.nan)),
+        'hit_slow_factor': float(m.get('hit_slow_factor', 1.0)),
+        'shield_regen_rate': float(m.get('shield_regen_rate', 0.0)),
+        'health_regen_rate': float(m.get('health_regen_rate', 0.0)),
+        'turret_rate': float(m.get('turret_rate', math.nan)),
+        'min_range': float(m.get('min_range', 0.0)),
+        'charge_speed': float(m.get('charge_speed', math.nan)),
+        'charge_range_small': float(m.get('charge_range_small', 0.0)),
+        'charge_range_large': float(m.get('charge_range_large', 0.0)),
+        'charge_small_radius': float(m.get('charge_small_radius', 0.0)),
+        'charge_bonus': float(m.get('charge_bonus', 0.0)),
+        'attack_windup': int(m.get('attack_windup', 0)),
+        'projectile_delay': int(m.get('projectile_delay', 0)),
+        'attack_spacing': int(m.get('attack_spacing', 0)),
+        'hit_slow_loops': int(m.get('hit_slow_loops', 0)),
+        'shield_regen_delay': int(m.get('shield_regen_delay', 0)),
+        'follow_lock': int(m.get('follow_lock', -1)),
+        'charge_max_loops': int(m.get('charge_max_loops', 0)),
+        'charge_cooldown': int(m.get('charge_cooldown', 0)),
+        'projectile_to_center': bool(m.get('projectile_to_center', 0)),
+        'splash_rings': [(float(r), float(f)) for r, f in rings],
+        'splash_friendly': bool(m.get('splash_friendly', 0)),
+        'barrier_absorb': float(m.get('barrier_absorb', 0.0)),
+        'barrier_duration': int(m.get('barrier_duration', 0)),
+        'barrier_cooldown': int(m.get('barrier_cooldown', 0)),
+    }
+    if 'projectile_speed_air' in m:
+        out['projectile_speed_air'] = float(m['projectile_speed_air'])
+    if 'projectile_delay_air' in m:
+        out['projectile_delay_air'] = int(m['projectile_delay_air'])
+    if 'projectile_offset_air' in m:
+        out['projectile_offset_air'] = float(m['projectile_offset_air'])
     if 'splash_perp_half_length' in m:
         out['splash_perp'] = (
             float(m['splash_perp_half_length']),
@@ -296,15 +370,11 @@ def _combat_dict(measured: Mapping[str, Any], attributes: tuple[str, ...]) -> di
             float(m['splash_forward_length']),
             float(m['splash_forward_half_width']),
         )
-    out['splash_friendly'] = bool(m.get('splash_friendly', 0))
-    out['barrier_absorb'] = float(m.get('barrier_absorb', 0.0))
-    out['barrier_duration'] = int(m.get('barrier_duration', 0))
-    out['barrier_cooldown'] = int(m.get('barrier_cooldown', 0))
     if 'suicide_damage' in m:
-        bonus = []
+        bonus: list[tuple[int, float]] = []
         if 'light' in attributes:
             bonus = [(attributes.index('light'), float(m.get('suicide_bonus_light', 0.0)))]
-        out['suicide'] = {
+        suicide: _SuicideDict = {
             'damage': float(m['suicide_damage']),
             'trigger_range': float(m.get('suicide_trigger_range', 0.0)),
             'bonus': bonus,
@@ -313,17 +383,18 @@ def _combat_dict(measured: Mapping[str, Any], attributes: tuple[str, ...]) -> di
                 m.get('suicide_trigger_range_structure', SUICIDE_RANGE_STRUCTURE)
             ),
         }
+        out['suicide'] = suicide
     return out
 
 
-def _unit_dicts(static_data: StaticData, attributes: tuple[str, ...]) -> list[dict[str, Any]]:
+def _unit_dicts(static_data: StaticData, attributes: tuple[str, ...]) -> list[_UnitDict]:
     """Serialize unit static specifications into native engine input dictionaries."""
-    units = []
+    units: list[_UnitDict] = []
     for spec in static_data.units.values():
         mask = 0
         for a in spec.attributes:
             mask |= 1 << attributes.index(a)
-        weapons = [
+        weapons: list[_WeaponDict] = [
             {
                 'target': w.target,
                 'damage': float(w.damage),
@@ -334,7 +405,8 @@ def _unit_dicts(static_data: StaticData, attributes: tuple[str, ...]) -> list[di
             }
             for w in spec.weapons
         ]
-        unit_dict: dict[str, Any] = {
+        combat = _combat_dict(spec.measured, attributes)
+        unit_dict: _UnitDict = {
             'unit_type': int(spec.unit_type),
             'variant': int(spec.variant),
             'radius': float(spec.radius),
@@ -347,8 +419,11 @@ def _unit_dicts(static_data: StaticData, attributes: tuple[str, ...]) -> list[di
             'is_flying': bool(spec.is_flying),
             'attr_mask': mask,
             'facing_rate': float(spec.measured.get('facing_rate', math.inf)),
-            **{k: float(spec.measured.get(k, d)) for k, d in _MOTION_KEYS},
-            **_combat_dict(spec.measured, attributes),
+            'acceleration': float(spec.measured.get('acceleration', math.inf)),
+            'deceleration': float(spec.measured.get('deceleration', math.inf)),
+            'turn_rate': float(spec.measured.get('turn_rate', math.inf)),
+            'heading_blend': float(spec.measured.get('heading_blend', math.nan)),
+            **combat,
             'shield_regen_fallback': spec.shield_max > 0
             and 'shield_regen_rate' not in spec.measured,
             'health_regen_fallback': spec.race == 'zerg'
@@ -365,18 +440,7 @@ def _unit_dicts(static_data: StaticData, attributes: tuple[str, ...]) -> list[di
 
 def _check_scenario(scenario: Scenario, maps: Mapping[str, MapInfo]) -> MapInfo:
     """Validate scenario contract requirements for `ZgameBackend`."""
-    scenario.validate()
-    if scenario.spawn_mode == 'map_trigger':
-        raise CapabilityError('Backend zgame does not support spawn_mode=map_trigger')
-    for i, player in enumerate(scenario.players):
-        if not isinstance(player, AgentPlayer):
-            raise CapabilityError(
-                f'Backend zgame does not support {type(player).__name__} (players[{i}])'
-            )
-    try:
-        return maps[scenario.map_id]
-    except KeyError:
-        raise ContractError(f'Unknown map {scenario.map_id!r}') from None
+    return validate_agent_scenario(scenario, maps, 'zgame')
 
 
 class ZgameBackend:

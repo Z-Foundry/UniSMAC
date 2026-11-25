@@ -76,22 +76,16 @@ export SC2PATH=/path/to/StarCraftII
 ```python
 import numpy as np
 from unismac import make_vec_env
-from unismac.profiles import profile_overrides
 
-_, overrides = profile_overrides("sc2-native")
-env = make_vec_env(
-    "smac-portable", "8m", backend="zgame", batch_size=64, seed=0, overrides=overrides
-)
-obs, state = env.reset()  # obs: [64, 8, D], state: [64, S]; env.accel == "rust"
-
-rng = np.random.default_rng(0)
-for _ in range(100):
-    avail = env.get_avail_actions()
-    actions = np.array([[int(rng.choice(np.flatnonzero(r))) for r in row] for row in avail])
-    rewards, terminated, infos = env.step(actions)
-    if terminated.any():
-        env.reset(np.flatnonzero(terminated).tolist())
-env.close()
+with make_vec_env("smac-portable", "8m", profile="sc2-native", batch_size=64, seed=0) as env:
+    obs, state = env.reset()  # obs: [64, 8, D], state: [64, S]; env.accel == "rust"
+    rng = np.random.default_rng(0)
+    for _ in range(100):
+        avail = env.get_avail_actions()
+        actions = ((1.0 + rng.random(avail.shape)) * avail).argmax(axis=-1)
+        rewards, terminated, infos = env.step(actions)
+        if terminated.any():
+            env.reset(np.flatnonzero(terminated).tolist())
 ```
 
 ### 2. 双边对称自博弈（Self-Play）
@@ -99,20 +93,13 @@ env.close()
 ```python
 import numpy as np
 from unismac import make_vec_env
-from unismac.profiles import merge_overrides, profile_overrides
 
-_, sym = profile_overrides("sc2-symmetric")
-overrides = merge_overrides(sym, {"opponent.kind": "external"})
-env = make_vec_env(
-    "smac-portable", "2s3z", backend="zgame", batch_size=32, seed=0, overrides=overrides
-)
-env.reset()
-
-obs_p1, obs_p2 = env.get_obs(side=1), env.get_obs(side=2)
-avail_p1, avail_p2 = env.get_avail_actions(side=1), env.get_avail_actions(side=2)
-r_p1, terminated, infos = env.step(avail_p1.argmax(-1), enemy_actions=avail_p2.argmax(-1))
-r_p2 = np.array([info.get("reward_enemy", 0.0) for info in infos])
-env.close()
+with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as env:
+    env.reset()
+    obs_p1, obs_p2 = env.get_obs(side=1), env.get_obs(side=2)
+    avail_p1, avail_p2 = env.get_avail_actions(side=1), env.get_avail_actions(side=2)
+    r_p1, terminated, infos = env.step(avail_p1.argmax(-1), enemy_actions=avail_p2.argmax(-1))
+    r_p2 = np.array([info.get("reward_enemy", 0.0) for info in infos])
 ```
 
 ### 3. 一行切换实机 SC2 评估或纯 Python `pyref`
@@ -124,22 +111,25 @@ from unismac import make_env
 sc2_env = make_env("smac-portable", "8m", backend="sc2", seed=0)  # MultiAgentEnv 兼容的 UnismacEnv
 
 # 或切换纯 Python 参考后端调试（无需 SC2 与 Rust）
-pyref_env = make_env("smac-portable", "8m", backend="pyref", seed=0)
+pyref_env = make_env("smac-portable", "8m", backend="pyref", profile="sc2-native", seed=0)
 ```
 
 完整可运行示例位于 [`examples/`](examples/quickstart_vec.py)：
 - [`examples/quickstart_vec.py`](examples/quickstart_vec.py) — 单边向量化采样示例
 - [`examples/self_play.py`](examples/self_play.py) — 双边对称自博弈示例
+- [`examples/marl_loop_minimal.py`](examples/marl_loop_minimal.py) — PyMARL/CleanRL 风格训练循环、超时截断区分与按局 `seeds` 确定性评测
 - [`examples/sc2_eval.py`](examples/sc2_eval.py) — 多后端一键切换示例（`zgame` / `pyref` / `sc2`）
 
 ## 命令行工具
 
 ```bash
-unismac info                                            # 查看版本、契约与 zgame 加速状态
-unismac list-scenarios --preset smac-portable           # 列出指定预设的全部场景
-unismac list-profiles                                   # 列出公开 Profile（加 --all 显示兼容别名）
+unismac info [--json]                                                 # 查看版本、契约、SC2PATH 与 zgame 状态
+unismac list-scenarios --preset smac-hard-portable --runnable --details  # 查看场景及可移植运行覆盖度
+unismac list-profiles [--all]                                         # 列出公开 Profile（加 --all 显示兼容别名）
+unismac show-profile sc2-native                                       # 查看 Profile 的精简非默认配置项
+unismac show-options --group collision --zgame-only                   # 按主题检索 PyrefConfig 配置项
 unismac bench --preset smac-portable --scenario 8m \
-    --backend zgame --batch-size 64 --steps 200         # 快速吞吐基准测试
+    --backend zgame --batch-size 64 --steps 200                       # 快速吞吐基准测试
 ```
 
 ## 文档索引
@@ -147,9 +137,11 @@ unismac bench --preset smac-portable --scenario 8m \
 | 文档 | 内容 |
 | --- | --- |
 | [架构设计](docs/architecture.md) | 总体分层、后端契约、SC2 / PyRef / ZGame 三后端架构与跨包版本契约 |
-| [环境接口规范](docs/interface.md) | `VecEnv`/`UnismacEnv` 公开 API、双边自博弈、按局种子与对手、`accel` 档位及 `NativeSMACOpponent` |
+| [源码阅读地图](docs/code-map.md) | 30 分钟源码导航：`step()` 调用链、`pyref` ↔ `zgame` 1:1 镜像表、`accel` 路由与 FAQ |
+| [环境接口规范](docs/interface.md) | `VecEnv`/`UnismacEnv` 公开 API、`profile=`/`dual=`、按局种子与对手、`accel` 档位及 CLI |
 | [基准与预设](docs/benchmarks.md) | SMAC / SMACv2 / SMAC-Hard 差异矩阵、84 场景（76 可移植可运行）与 SC2 本地资产提取 |
-| [Profile 与配置指南](docs/profiles-and-config.md) | 公开语义化 Profile（`sc2-native`、`sc2-explore`、`sc2-symmetric`）、兼容别名与 `PyrefConfig` 配置说明 |
+| [Profile 与配置指南](docs/profiles-and-config.md) | 公开语义化 Profile（`sc2-native`、`sc2-explore`、`sc2-symmetric`）、兼容别名与分组 `PyrefConfig` 说明 |
+| [贡献指南](CONTRIBUTING.md) | 本地开发环境、[`Makefile`](Makefile) 校验目标、7 层测试目录与 `rust_manifest.json` 流程 |
 
 ## 引用
 

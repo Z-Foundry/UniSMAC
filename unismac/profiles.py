@@ -33,6 +33,7 @@ deep-merged with custom overrides via `profile_overrides` or `merge_overrides`.
 
 from __future__ import annotations
 
+import difflib
 import json
 from collections.abc import Mapping
 from typing import Any, Literal
@@ -59,6 +60,95 @@ _DELAY = {
     'backend.pyref_command_delay': 1,
     'backend.pyref_move_lag': 1,
 }
+
+# ---------------------------------------------------------------- Public net profile definitions
+
+# Core non-default options shared by sc2-explore, sc2-native, and sc2-symmetric.
+_SC2_NATIVE_CORE: dict[str, Any] = {
+    # Stages
+    'targeting': 'sc2',
+    'attack': 'sc2',
+    'pathing': 'navmesh',
+    'steering': 'native',
+    'kinematics': 'accel',
+    'collision': 'native',
+    'damage': 'sc2',
+    # Q12 fixed-point movement, steering, collision, and wall clearance
+    'spawn_facing': 'random',
+    'contact_slack': 0.0625,
+    'idle_push_share': 0.9,
+    'idle_return': True,
+    'pin_engaged': True,
+    'native_share_rule': 'priority_tree',
+    'native_batch_flags': True,
+    'native_nbr_order': 'quantized',
+    'native_steer_avoid': True,
+    'native_move_reissue': True,
+    'native_stop': True,
+    'native_air_sep': True,
+    'native_wall_clearance': True,
+    # Targeting, retargeting, and command reissue
+    'auto_acquire': True,
+    'auto_acquire_owners': (2,),
+    'retreat_owners': (1,),
+    'passive_from_map': True,
+    'scan_phase': 'per_unit',
+    'scan_after_move': True,
+    'retarget': True,
+    'retarget_lock': 'none',
+    'retarget_armed_only': True,
+    'retarget_busy_lock': True,
+    'retarget_acquire': True,
+    'retarget_after_move': True,
+    'reissue_unit': True,
+    'kill_hold': True,
+    'kill_rescan_lock': True,
+    'kill_no_retreat': True,
+    'kill_no_retreat_end': 'lock',
+    'report_engaged_as_attack_unit': True,
+    'chase_lock': ((48, 12), (73, 8), (74, 8)),
+    'chase_lock_target': True,
+    'follow_lock': True,
+    'slop_on_arrival': True,
+    # Attack, damage, regen, and Medivac heal
+    'attack_commit': True,
+    'attack_on_arrival': True,
+    'amove_needs_weapon': True,
+    'attack_unit_needs_weapon': True,
+    'dead_target_move': True,
+    'slow_arrival': True,
+    'hit_slow_owner1_only': True,
+    'regen_race_fallback': True,
+    'stop_keeps_heal': True,
+    'heal_on_arrival': True,
+    'heal_facing': True,
+    'heal_pick': 'fraction',
+}
+
+_NAT_COMBAT_OPTIONS: dict[str, Any] = {
+    'native_backswing': True,
+    'native_retarget': True,
+    'hit_assist': True,
+    'native_assist_on_hit': True,
+    'native_scan_cadence': True,
+    'native_loop_order': True,
+    'kill_rescan_delay': 0,
+    'kill_rescan_order': True,
+}
+
+_SYM_OPTIONS: dict[str, Any] = {'auto_acquire_owners': (), 'retreat_owners': (1, 2)}
+
+_SC2_EXPLORE: dict[str, Any] = {**_SC2_NATIVE_CORE, 'acquire_start_loop': 2}
+_SC2_NATIVE: dict[str, Any] = {**_SC2_NATIVE_CORE, **_NAT_COMBAT_OPTIONS}
+_SC2_SYMMETRIC: dict[str, Any] = {
+    **_SC2_NATIVE,
+    **_SYM_OPTIONS,
+    'hit_slow_owner1_only': False,
+    'passive_from_map': False,
+}
+
+# ---------------------------------------------------------------- Legacy historical profiles
+
 _ALIGNED_OPTIONS = {
     'collision': 'hard',
     'steering': 'sc2_avoid',
@@ -127,57 +217,8 @@ _AXO_OPTIONS = {
 _AXO = {**_V5, **_AXO_OPTIONS}
 _RGHF_OPTIONS = {'regen_race_fallback': True, 'heal_pick': 'fraction'}
 _AXO_RGHF = {**_AXO, **_RGHF_OPTIONS}
-_NAT_MOVEMENT_OPTIONS = {
-    'pin_sidestep': False,
-    'pin_sidestep_drift': False,
-    'pin_tie_grid': False,
-    'avoid_parallel_faster_only': False,
-    'avoid_cross_cos': 0.9,
-    'avoid_share': 'full',
-    'avoid_share_power': 1.0,
-    'avoid_side_check': False,
-    'contact_orbit': False,
-    'mover_push_share': 'half',
-    'mover_speed_cap': False,
-    'pin_slide': False,
-    'crowd_arrival': False,
-    'crowd_cover': False,
-    'push_clearance': False,
-    'pin_after_fire': False,
-    'pin_lag': False,
-    'steering': 'native',
-    'collision': 'native',
-    'native_share_rule': 'priority_tree',
-    'native_batch_flags': True,
-    'native_nbr_order': 'quantized',
-    'native_steer_avoid': True,
-    'native_move_reissue': True,
-    'native_stop': True,
-    'native_air_sep': True,
-    'native_wall_clearance': True,
-}
-_RGHF_NAT = {**_AXO_RGHF, **_NAT_MOVEMENT_OPTIONS, 'passive_from_map': True}
-_NAT_COMBAT_OPTIONS = {
-    'native_backswing': True,
-    'native_retarget': True,
-    'hit_assist': True,
-    'native_assist_on_hit': True,
-    'native_scan_cadence': True,
-    'acquire_start_loop': 0,
-    'native_loop_order': True,
-    'kill_rescan_delay': 0,
-    'kill_rescan_order': True,
-}
-_RGHF_NAT_CBT = {**_RGHF_NAT, **_NAT_COMBAT_OPTIONS}
-_SYM_OPTIONS = {'auto_acquire_owners': (), 'retreat_owners': (1, 2)}
 _V4_SYM = {**_V4, **_SYM_OPTIONS}
 _AXO_SYM = {**_AXO, **_SYM_OPTIONS, 'hit_slow_owner1_only': False}
-_RGHF_NAT_CBT_SYM = {
-    **_RGHF_NAT_CBT,
-    **_SYM_OPTIONS,
-    'hit_slow_owner1_only': False,
-    'passive_from_map': False,
-}
 
 
 BackendName = Literal['sc2', 'pyref']
@@ -199,21 +240,21 @@ PUBLIC_PROFILES: dict[str, Profile] = {
     'sc2-native': Profile(
         'sc2-native',
         'pyref',
-        {**_DELAY, 'backend.pyref_options': dict(_RGHF_NAT_CBT)},
+        {**_DELAY, 'backend.pyref_options': dict(_SC2_NATIVE)},
         'Recommended default profile: full Q12 fixed-point movement, collision, '
         'combat/targeting timing, assist-on-hit, and map-driven passive behavior',
     ),
     'sc2-explore': Profile(
         'sc2-explore',
         'pyref',
-        {**_DELAY, 'backend.pyref_options': dict(_RGHF_NAT)},
+        {**_DELAY, 'backend.pyref_options': dict(_SC2_EXPLORE)},
         'Short-budget exploration profile: Q12 fixed-point movement/collision '
         'with simplified combat targeting (no early assist-on-hit barrier)',
     ),
     'sc2-symmetric': Profile(
         'sc2-symmetric',
         'pyref',
-        {**_DELAY, 'backend.pyref_options': dict(_RGHF_NAT_CBT_SYM)},
+        {**_DELAY, 'backend.pyref_options': dict(_SC2_SYMMETRIC)},
         'Symmetric two-sided edition of sc2-native for opponent.kind=external '
         'self-play and head-to-head evaluation',
     ),
@@ -306,13 +347,13 @@ LEGACY_PROFILES: dict[str, Profile] = {
     'rghf-nat': Profile(
         'rghf-nat',
         'pyref',
-        {**_DELAY, 'backend.pyref_options': dict(_RGHF_NAT)},
+        {**_DELAY, 'backend.pyref_options': dict(_SC2_EXPLORE)},
         'Legacy alias of sc2-explore',
     ),
     'rghf-nat-cbt': Profile(
         'rghf-nat-cbt',
         'pyref',
-        {**_DELAY, 'backend.pyref_options': dict(_RGHF_NAT_CBT)},
+        {**_DELAY, 'backend.pyref_options': dict(_SC2_NATIVE)},
         'Legacy alias of sc2-native',
     ),
     'aligned-v4-sym': Profile(
@@ -330,7 +371,7 @@ LEGACY_PROFILES: dict[str, Profile] = {
     'rghf-nat-cbt-sym': Profile(
         'rghf-nat-cbt-sym',
         'pyref',
-        {**_DELAY, 'backend.pyref_options': dict(_RGHF_NAT_CBT_SYM)},
+        {**_DELAY, 'backend.pyref_options': dict(_SC2_SYMMETRIC)},
         'Legacy alias of sc2-symmetric',
     ),
 }
@@ -345,6 +386,13 @@ STANDARD_PROFILES: tuple[str, ...] = (
     STANDARD_EXPLORE_PROFILE,
     STANDARD_SYMMETRIC_PROFILE,
 )
+
+
+def _suggest(name: str, choices: Mapping[str, Any] | set[str] | list[str]) -> str:
+    matches = difflib.get_close_matches(name, list(choices), n=3, cutoff=0.5)
+    if not matches:
+        return ''
+    return f'; did you mean {", ".join(repr(m) for m in matches)}?'
 
 
 def list_profiles(include_legacy: bool = False) -> list[str]:
@@ -363,9 +411,11 @@ def profile_overrides(
     try:
         p = PROFILES[name]
     except KeyError:
+        hint = _suggest(name, PROFILES)
         raise ValueError(
-            f'Unknown profile {name!r}; available public profiles: {list(PUBLIC_PROFILES)} '
-            f'(all profiles: {sorted(PROFILES)})'
+            f'Unknown profile {name!r}{hint} '
+            f'Available public profiles: {list(PUBLIC_PROFILES)} '
+            '(call list_profiles(include_legacy=True) for legacy aliases)'
         ) from None
     over = {k: (dict(v) if isinstance(v, dict) else v) for k, v in p.overrides.items()}
     if not pyref_options:
@@ -424,9 +474,16 @@ def parse_pyref_options(text: str | None) -> dict[str, Any] | None:
             f'--pyref-options cannot contain promoted fields {named}; '
             'set them via backend.pyref_<name> instead'
         )
-    unknown = sorted(set(value) - {f.name for f in dataclasses.fields(PyrefConfig)})
+    known = {f.name for f in dataclasses.fields(PyrefConfig)}
+    unknown = sorted(set(value) - known)
     if unknown:
-        raise ValueError(f'--pyref-options contains unknown PyrefConfig fields {unknown}')
+        hints = [
+            f'{k!r} -> {m[0]!r}'
+            for k in unknown
+            if (m := difflib.get_close_matches(k, sorted(known), n=1, cutoff=0.5))
+        ]
+        suffix = f' (did you mean: {", ".join(hints)}?)' if hints else ''
+        raise ValueError(f'--pyref-options contains unknown PyrefConfig fields {unknown}{suffix}')
     return value
 
 

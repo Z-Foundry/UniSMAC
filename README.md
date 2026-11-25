@@ -76,22 +76,16 @@ export SC2PATH=/path/to/StarCraftII
 ```python
 import numpy as np
 from unismac import make_vec_env
-from unismac.profiles import profile_overrides
 
-_, overrides = profile_overrides("sc2-native")
-env = make_vec_env(
-    "smac-portable", "8m", backend="zgame", batch_size=64, seed=0, overrides=overrides
-)
-obs, state = env.reset()  # obs: [64, 8, D], state: [64, S]; env.accel == "rust"
-
-rng = np.random.default_rng(0)
-for _ in range(100):
-    avail = env.get_avail_actions()
-    actions = np.array([[int(rng.choice(np.flatnonzero(r))) for r in row] for row in avail])
-    rewards, terminated, infos = env.step(actions)
-    if terminated.any():
-        env.reset(np.flatnonzero(terminated).tolist())
-env.close()
+with make_vec_env("smac-portable", "8m", profile="sc2-native", batch_size=64, seed=0) as env:
+    obs, state = env.reset()  # obs: [64, 8, D], state: [64, S]; env.accel == "rust"
+    rng = np.random.default_rng(0)
+    for _ in range(100):
+        avail = env.get_avail_actions()
+        actions = ((1.0 + rng.random(avail.shape)) * avail).argmax(axis=-1)
+        rewards, terminated, infos = env.step(actions)
+        if terminated.any():
+            env.reset(np.flatnonzero(terminated).tolist())
 ```
 
 ### 2. Symmetric Two-Sided Self-Play
@@ -99,20 +93,13 @@ env.close()
 ```python
 import numpy as np
 from unismac import make_vec_env
-from unismac.profiles import merge_overrides, profile_overrides
 
-_, sym = profile_overrides("sc2-symmetric")
-overrides = merge_overrides(sym, {"opponent.kind": "external"})
-env = make_vec_env(
-    "smac-portable", "2s3z", backend="zgame", batch_size=32, seed=0, overrides=overrides
-)
-env.reset()
-
-obs_p1, obs_p2 = env.get_obs(side=1), env.get_obs(side=2)
-avail_p1, avail_p2 = env.get_avail_actions(side=1), env.get_avail_actions(side=2)
-r_p1, terminated, infos = env.step(avail_p1.argmax(-1), enemy_actions=avail_p2.argmax(-1))
-r_p2 = np.array([info.get("reward_enemy", 0.0) for info in infos])
-env.close()
+with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as env:
+    env.reset()
+    obs_p1, obs_p2 = env.get_obs(side=1), env.get_obs(side=2)
+    avail_p1, avail_p2 = env.get_avail_actions(side=1), env.get_avail_actions(side=2)
+    r_p1, terminated, infos = env.step(avail_p1.argmax(-1), enemy_actions=avail_p2.argmax(-1))
+    r_p2 = np.array([info.get("reward_enemy", 0.0) for info in infos])
 ```
 
 ### 3. One-Line Switch to Real SC2 Evaluation or Pure-Python `pyref`
@@ -124,22 +111,25 @@ from unismac import make_env
 sc2_env = make_env("smac-portable", "8m", backend="sc2", seed=0)  # MultiAgentEnv-compatible UnismacEnv
 
 # Or readable pure-Python reference backend (no SC2 or Rust needed)
-pyref_env = make_env("smac-portable", "8m", backend="pyref", seed=0)
+pyref_env = make_env("smac-portable", "8m", backend="pyref", profile="sc2-native", seed=0)
 ```
 
 Runnable scripts are in [`examples/`](examples/quickstart_vec.py):
 - [`examples/quickstart_vec.py`](examples/quickstart_vec.py) — vectorized single-side rollout
 - [`examples/self_play.py`](examples/self_play.py) — two-sided symmetric self-play
+- [`examples/marl_loop_minimal.py`](examples/marl_loop_minimal.py) — PyMARL/CleanRL-style rollout, truncation handling, and per-env `seeds` eval
 - [`examples/sc2_eval.py`](examples/sc2_eval.py) — backend switching (`zgame` / `pyref` / `sc2`)
 
 ## CLI
 
 ```bash
-unismac info                                            # Package, contract, and zgame acceleration status
-unismac list-scenarios --preset smac-portable           # List scenarios for a preset
-unismac list-profiles                                   # List public profiles (add --all for legacy aliases)
+unismac info [--json]                                                 # Versions, contract, SC2PATH & zgame status
+unismac list-scenarios --preset smac-hard-portable --runnable --details  # Inspect scenarios & portable coverage
+unismac list-profiles [--all]                                         # List public profiles (add --all for legacy aliases)
+unismac show-profile sc2-native                                       # Show concise non-default profile overrides
+unismac show-options --group collision --zgame-only                   # Browse grouped PyrefConfig options
 unismac bench --preset smac-portable --scenario 8m \
-    --backend zgame --batch-size 64 --steps 200         # Quick throughput benchmark
+    --backend zgame --batch-size 64 --steps 200                       # Quick throughput benchmark
 ```
 
 ## Documentation
@@ -147,9 +137,11 @@ unismac bench --preset smac-portable --scenario 8m \
 | Document | Contents |
 | --- | --- |
 | [Architecture](docs/architecture.md) | Layered design, backend contract, SC2 / PyRef / ZGame backends, and cross-package versioning |
-| [Environment Interface](docs/interface.md) | Public `VecEnv`/`UnismacEnv` API, two-sided self-play, per-episode seeds/opponents, `accel` tiers, and `NativeSMACOpponent` |
+| [Architecture & Code Map](docs/code-map.md) | 30-minute reading map: `step()` trace, 1:1 `pyref` ↔ `zgame` mirror, `accel` routing, and FAQ |
+| [Environment Interface](docs/interface.md) | Public `VecEnv`/`UnismacEnv` API, `profile=`/`dual=`, per-episode seeds/opponents, `accel` tiers, and CLI |
 | [Benchmarks & Presets](docs/benchmarks.md) | SMAC / SMACv2 / SMAC-Hard differences, 84 scenarios (76 portable runnable), SC2 setup & asset extraction |
-| [Profiles & Configuration](docs/profiles-and-config.md) | Public profiles (`sc2-native`, `sc2-explore`, `sc2-symmetric`), legacy aliases, and `PyrefConfig` reference |
+| [Profiles & Configuration](docs/profiles-and-config.md) | Public profiles (`sc2-native`, `sc2-explore`, `sc2-symmetric`), legacy aliases, and grouped `PyrefConfig` reference |
+| [Contributing](CONTRIBUTING.md) | Developer setup, [`Makefile`](Makefile) targets, 7-layer test suite, and `rust_manifest.json` workflow |
 
 ## Citation
 

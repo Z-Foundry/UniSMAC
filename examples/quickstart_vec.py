@@ -14,19 +14,13 @@ import time
 
 import numpy as np
 
-from unismac import make_vec_env
-from unismac.profiles import STANDARD_PROFILE, profile_overrides
+from unismac import STANDARD_PROFILE, make_vec_env
 
 
 def sample_valid_actions(avail: np.ndarray, rng: np.random.Generator) -> np.ndarray:
-    """Uniformly sample one valid action per (env, agent) from an int64[B, A, K] mask."""
-    batch_size, n_agents, _ = avail.shape
-    actions = np.zeros((batch_size, n_agents), dtype=np.int64)
-    for b in range(batch_size):
-        for a in range(n_agents):
-            valid = np.flatnonzero(avail[b, a])
-            actions[b, a] = int(valid[rng.integers(len(valid))])
-    return actions
+    """Vectorized uniform sampling over valid actions (`avail: int64[B, A, K]`)."""
+    scores = (1.0 + rng.random(avail.shape)) * avail
+    return scores.argmax(axis=-1).astype(np.int64)
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,9 +33,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--scenario', default='8m', help='Scenario name (default: 8m).')
     parser.add_argument(
         '--backend',
-        default='zgame',
-        choices=('zgame', 'pyref'),
-        help='Simulation backend (default: zgame).',
+        default='auto',
+        choices=('auto', 'zgame', 'pyref'),
+        help='Simulation backend (default: auto; prefers zgame when installed).',
     )
     parser.add_argument(
         '--profile',
@@ -64,7 +58,7 @@ def parse_args() -> argparse.Namespace:
         '--threads',
         type=int,
         default=1,
-        help='ZGame worker threads (default: 1).',
+        help='ZGame worker threads (default: 1; used when backend is zgame).',
     )
     parser.add_argument('--seed', type=int, default=0, help='Base RNG seed (default: 0).')
     return parser.parse_args()
@@ -72,17 +66,16 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    _, overrides = profile_overrides(args.profile)
     kwargs = {'zgame_threads': args.threads} if args.backend == 'zgame' else {}
 
     try:
-        env = make_vec_env(
+        ctx = make_vec_env(
             args.preset,
             args.scenario,
             backend=args.backend,
+            profile=args.profile,
             batch_size=args.batch_size,
             seed=args.seed,
-            overrides=overrides,
             **kwargs,
         )
     except ImportError as exc:
@@ -94,7 +87,7 @@ def main() -> int:
         )
         return 1
 
-    try:
+    with ctx as env:
         obs, state = env.reset()
         rng = np.random.default_rng(args.seed)
         episodes = 0
@@ -116,14 +109,11 @@ def main() -> int:
 
         env_steps = args.steps * args.batch_size
         sps = env_steps / max(elapsed, 1e-9)
-        print(f'Preset/Scenario : {args.preset}/{args.scenario}')
-        print(f'Backend / Accel : {args.backend} / {env.accel}')
+        print(f'Environment     : {env!r}')
         print(f'Profile         : {args.profile}')
         print(f'Obs / State     : {tuple(obs.shape)} / {tuple(state.shape)}')
         print(f'Env steps       : {env_steps:,} in {elapsed:.3f}s ({sps:,.0f} step/s)')
         print(f'Episodes / Wins : {episodes} / {wins} (total reward: {total_reward:.2f})')
-    finally:
-        env.close()
 
     return 0
 

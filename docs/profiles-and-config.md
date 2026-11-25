@@ -1,6 +1,6 @@
 # Profiles & Configuration Reference
 
-[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Environment Interface](interface.md) · [Benchmarks & Presets](benchmarks.md)
+[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Environment Interface](interface.md) · [Benchmarks & Presets](benchmarks.md)
 
 UniSMAC uses **named profiles** (`unismac.profiles`) to bundle validated simulator configurations into concise, human-readable names, while keeping the full underlying `PyrefConfig` surface accessible for fine-grained research and ablations.
 
@@ -21,28 +21,28 @@ Most users only need the five public profiles listed by `unismac.profiles.list_p
 ### Using Profiles in Python
 
 ```python
-from unismac import make_vec_env
-from unismac.profiles import (
-    STANDARD_PROFILE,
-    STANDARD_SYMMETRIC_PROFILE,
-    list_profiles,
-    merge_overrides,
-    profile_overrides,
-)
+from unismac import STANDARD_PROFILE, make_vec_env
 
-# 1. Recommended single-side rollout / training profile
-_, overrides = profile_overrides(STANDARD_PROFILE)  # "sc2-native"
-env = make_vec_env("smac-portable", "8m", backend="zgame", batch_size=64, seed=0, overrides=overrides)
+# 1. Recommended single-side rollout / training profile (auto-selects zgame when installed)
+with make_vec_env("smac-portable", "8m", profile=STANDARD_PROFILE, batch_size=64, seed=0) as env:
+    obs, state = env.reset()
 
-# 2. Override individual PyrefConfig fields on top of a profile (deep-merged)
-_, custom = profile_overrides("sc2-native", pyref_options={"projectile_3d": True})
+# 2. Overlay individual PyrefConfig fields on top of a profile (deep-merged automatically)
+with make_vec_env(
+    "smac-portable",
+    "2c_vs_64zg",
+    profile="sc2-native",
+    batch_size=16,
+    overrides={"backend.pyref_options": {"projectile_3d": True}},
+) as env:
+    obs, state = env.reset()
 
-# 3. Combine a profile with additional EnvConfig overrides
-_, sym = profile_overrides(STANDARD_SYMMETRIC_PROFILE)  # "sc2-symmetric"
-dual_overrides = merge_overrides(sym, {"opponent.kind": "external"})
+# 3. Two-sided symmetric self-play (automatically selects sc2-symmetric + opponent.kind='external')
+with make_vec_env("smac-portable", "2s3z", dual=True, batch_size=32, seed=0) as env:
+    env.reset()
 ```
 
-> **Backend note**: `profile_overrides()` returns `(default_backend, overrides_dict)`. All `pyref`-family profiles (`sc2-native`, `sc2-explore`, `sc2-symmetric`, `minimal`) run identically and bitwise-equivalently on both `backend="zgame"` (recommended for speed) and `backend="pyref"`.
+> **Lower-level helpers**: `unismac.profiles.profile_overrides()` and `merge_overrides()` remain available for callers that construct override dictionaries explicitly. All `pyref`-family profiles (`sc2-native`, `sc2-explore`, `sc2-symmetric`, `minimal`) run identically and bitwise-equivalently on both `backend="zgame"` (recommended for speed) and `backend="pyref"`.
 
 ---
 
@@ -159,16 +159,22 @@ Supported `terrain_elevation` values:
 - `'full'` or `True`: enables `visibility='sc2'`, `lost_vision='sc2'`, and `projectile_3d=True`.
 - `'off'` or `False`: leaves terrain options unchanged.
 
-### G. Inspecting All 164 `PyrefConfig` Options Programmatically
+### G. Inspecting All 164 `PyrefConfig` Options Programmatically & via CLI
 
-Every field, default value, and type annotation is inspectable directly from Python:
+Browse options by topic (`stages`, `commands`, `targeting`, `attack`, `abilities`, `steering`, `collision`, `damage`, `visibility`), tier (`core` / `native` / `legacy_heuristic`), and `zgame` support from the CLI:
+
+```bash
+unismac show-profile sc2-native
+unismac show-options --group collision --zgame-only
+```
+
+Or query the read-only option catalog directly from Python (`unismac.backends.pyref.options_meta`):
 
 ```python
-import dataclasses
-from unismac.backends.pyref import PyrefConfig
+from unismac.backends.pyref.options_meta import describe_pyref_options
 
-for field in dataclasses.fields(PyrefConfig):
-    print(f"{field.name:30s} = {field.default!r}")
+for entry in describe_pyref_options(group="collision", tier="native", zgame_only=True):
+    print(entry)
 ```
 
 Fields not yet implemented in `zgame` (30 legacy heuristic knobs, `rl_turn='curve'`, and non-default `min_damage`) remain fully executable on `backend='pyref'` and fail fast with `CapabilityError` if enabled on `backend='zgame'`.

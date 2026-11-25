@@ -9,6 +9,7 @@ scenarios with identical names (e.g. `3m`) that differ in parameters or map IDs.
 
 from __future__ import annotations
 
+import difflib
 from dataclasses import dataclass
 from functools import cache
 from typing import Literal
@@ -63,7 +64,9 @@ def _index() -> dict[Benchmark, dict[str, ScenarioSpec]]:
 def _group(benchmark: str) -> dict[str, ScenarioSpec]:
     index = _index()
     if benchmark not in index:
-        raise KeyError(f'Unknown benchmark {benchmark!r}; available: {", ".join(BENCHMARKS)}')
+        matches = difflib.get_close_matches(benchmark, list(BENCHMARKS), n=2, cutoff=0.5)
+        hint = f'; did you mean {", ".join(repr(m) for m in matches)}?' if matches else ''
+        raise KeyError(f'Unknown benchmark {benchmark!r}{hint} Available: {", ".join(BENCHMARKS)}')
     return index[benchmark]  # type: ignore[index]
 
 
@@ -73,7 +76,11 @@ def get(benchmark: str, name: str) -> ScenarioSpec:
     try:
         return group[name]
     except KeyError:
-        raise KeyError(f'No scenario {name!r} registered for benchmark {benchmark!r}') from None
+        matches = difflib.get_close_matches(name, list(group), n=3, cutoff=0.5)
+        hint = f'; did you mean {", ".join(repr(m) for m in matches)}?' if matches else ''
+        raise KeyError(
+            f'No scenario {name!r} registered for benchmark {benchmark!r}{hint}'
+        ) from None
 
 
 def names(benchmark: str) -> list[str]:

@@ -34,6 +34,7 @@ from unismac.contract import NO_SLOT, CommandKind
 
 from ..sim import Sim, f32
 from . import abilities
+from ._math import wrap_angle as _wrap
 
 
 def _load_atan2f() -> Callable[[float, float], float] | None:
@@ -146,11 +147,6 @@ def _check_arrival(sim: Sim, b: int, u: int) -> bool:
     return True
 
 
-def _wrap(a: float) -> float:
-    """Wrap angle into `[-pi, pi)`."""
-    return (a + math.pi) % (2.0 * math.pi) - math.pi
-
-
 def _turn_facing(sim: Sim, b: int, u: int, target: float | None = None) -> None:
     """Rotate `facing` toward `target` (default `heading`) by at most `facing_rate` rad/loop."""
     w, m = sim.world, sim.motion
@@ -193,24 +189,6 @@ def _lagged(sim: Sim, b: int, u: int) -> bool:
     m.speed[b, u] = np.hypot(vx, vy)
     _turn_facing(sim, b, u, target)
     return True
-
-
-def _move_constant(sim: Sim, b: int, u: int) -> None:
-    """Integrate desired velocity and set heading from velocity. Snaps directly onto waypoint
-    when velocity equals the exact remaining offset, avoiding float error for `arrival_radius=0`.
-    """
-    w, buf, m = sim.world, sim.buf, sim.motion
-    vx, vy = buf.vel_x[b, u], buf.vel_y[b, u]
-    if vx != 0 or vy != 0:
-        wx, wy = buf.waypoint_x[b, u], buf.waypoint_y[b, u]
-        if vx == wx - w.x[b, u] and vy == wy - w.y[b, u]:
-            w.x[b, u], w.y[b, u] = wx, wy
-        else:
-            w.x[b, u] += vx
-            w.y[b, u] += vy
-        m.heading[b, u] = _atan2f(vy, vx)
-    m.speed[b, u] = np.hypot(vx, vy)
-    _turn_facing(sim, b, u)
 
 
 # ---- Batched versions: bit-identical per element to the scalar functions above
@@ -561,3 +539,13 @@ def accel(sim: Sim) -> None:
 
 
 IMPLS = {'constant_speed': constant_speed, 'accel': accel}
+
+__all__ = [
+    'IMPLS',
+    'REVERSE_THRESHOLD',
+    'RL_TURN_TABLE',
+    'accel',
+    'constant_speed',
+    'rl_turn_step',
+    'stop_distance',
+]

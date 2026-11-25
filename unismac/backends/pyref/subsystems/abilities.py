@@ -65,6 +65,7 @@ import numpy as np
 from unismac.contract import NO_SLOT, CommandKind, Variant
 
 from ..sim import Sim, edge_distance, f32
+from ._math import wrap_angle as _wrap
 
 HEAL_ABILITY = 386  # MedivacHeal (cast_range 4, autocastable)
 HEAL_CASTERS = frozenset({54})  # Medivac (standard and _RL)
@@ -145,10 +146,6 @@ def _tick(sim: Sim, b: int, u: int, t: int) -> bool:
     w.health[b, t] = f32(w.health[b, t] + f32(heal))
     w.energy[b, u] = f32(w.energy[b, u] - f32(HEAL_ENERGY_PER_TICK * heal / HEAL_PER_TICK))
     return True
-
-
-def _wrap(a: float) -> float:
-    return (a + math.pi) % (2.0 * math.pi) - math.pi
 
 
 def _angle_to(sim: Sim, b: int, u: int, t: int) -> float:
@@ -310,3 +307,28 @@ def heal(sim: Sim) -> None:
 
 
 IMPLS = {'none': none, 'heal': heal}
+
+__all__ = [
+    'AUTOCAST_MIN_ENERGY',
+    'AUTOCAST_PERIOD',
+    'AUTOCAST_PHASE',
+    'AUTOCAST_RANGE',
+    'ENERGY_REGEN',
+    'HEAL_ABILITY',
+    'HEAL_ARC',
+    'HEAL_CASTERS',
+    'HEAL_ENERGY_PER_TICK',
+    'HEAL_FULL_LOOPS',
+    'HEAL_LEASH',
+    'HEAL_MIN_ENERGY',
+    'HEAL_PER_TICK',
+    'HEAL_RANGE',
+    'HEAL_START_DELAY',
+    'IMPLS',
+    'autocast_on_arrival',
+    'can_heal',
+    'heal',
+    'none',
+    'reset_state',
+    'start_order',
+]

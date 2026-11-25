@@ -1,6 +1,6 @@
 # Benchmarks, Presets & SC2 Setup
 
-[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Environment Interface](interface.md) · [Profiles & Configuration](profiles-and-config.md)
+[Back to README](../README.md) · Related: [Architecture](architecture.md) · [Code Map](code-map.md) · [Environment Interface](interface.md) · [Profiles & Configuration](profiles-and-config.md)
 
 UniSMAC unifies **SMAC**, **SMACv2**, and **SMAC-Hard** under six named presets and a single 84-scenario registry. All three benchmarks can be constructed side-by-side in the same Python process without upstream PySC2 conflicts.
 
@@ -34,6 +34,12 @@ UniSMAC bundles portable map geometry (`assets/maps/`), unit/weapon stats (`asse
 | `smacv2-portable` | **26 / 26** | 26 / 26 | All 23 classic maps + procedural `10gen_terran`, `10gen_zerg`, `10gen_protoss`. |
 | `smac-hard-portable` | **27 / 35** | 27 / 27 | 8 upstream SMAC-Hard scenarios are excluded from portable execution (listed below). |
 | **Total** | **76 / 84** | **76 / 76** | Bitwise identical across `zgame` and `pyref`. |
+
+You can inspect runnable scenarios and per-scenario metadata directly from the CLI:
+
+```bash
+unismac list-scenarios --preset smac-hard-portable --runnable --details
+```
 
 ### Excluded SMAC-Hard Portable Scenarios (8 / 35)
 

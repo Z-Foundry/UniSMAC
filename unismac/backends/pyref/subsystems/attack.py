@@ -10,6 +10,7 @@ from unismac.contract import NO_SLOT
 
 from .. import rng
 from ..sim import WEAPON_AIR, WEAPON_GROUND, Sim, edge_distance, f32, weapon_for
+from ._math import wrap_angle as _wrap
 
 
 def instant(sim: Sim) -> None:
@@ -38,10 +39,6 @@ def instant(sim: Sim) -> None:
     buf.fire_target[b, u] = tt
     sim.combat.last_fire_loop[b, u] = w.game_loop[b]
     cd[b, u] += p.weapon_period[b, u, wi]
-
-
-def _wrap(a: float) -> float:
-    return (a + math.pi) % (2.0 * math.pi) - math.pi
 
 
 def _face(sim: Sim, b: int, u: int, t: int) -> bool:
@@ -239,3 +236,5 @@ def sc2(sim: Sim) -> None:
 
 
 IMPLS = {'instant': instant, 'sc2': sc2}
+
+__all__ = ['IMPLS', 'instant', 'sc2']
