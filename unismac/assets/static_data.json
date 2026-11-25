@@ -1,0 +1,1090 @@
+{
+ "format": 1,
+ "source": "sc2 4.10.0.75689",
+ "sc2_version": "4.10.0.75689",
+ "source_map": "SMAC_Maps/32x32_flat",
+ "source_map_sha256": "c6dc0ce9eb59387a91828b434f2ab802890da75d49a9c7a6e677f78ff6ab4a8c",
+ "native_unit_type": {
+  "4,0": 4,
+  "4,1": 1971,
+  "9,0": 9,
+  "9,1": 1970,
+  "18,0": 18,
+  "24,0": 24,
+  "32,0": 32,
+  "33,0": 33,
+  "48,0": 48,
+  "48,1": 1974,
+  "49,0": 49,
+  "51,0": 51,
+  "51,1": 1973,
+  "52,0": 52,
+  "53,0": 53,
+  "54,0": 54,
+  "54,1": 1975,
+  "57,0": 57,
+  "73,0": 73,
+  "73,1": 1977,
+  "74,0": 74,
+  "74,1": 1976,
+  "78,0": 78,
+  "80,0": 80,
+  "83,0": 83,
+  "98,0": 98,
+  "99,0": 99,
+  "105,0": 105,
+  "105,1": 1978,
+  "107,0": 107,
+  "107,1": 1972,
+  "109,0": 109,
+  "126,0": 126,
+  "484,0": 484
+ },
+ "manual_patches": {
+  "Battlecruiser.weapons": "SC2 4.10 data_raw omits Battlecruiser (57) weapons because attacks use ability-based firing. Patched from empirical gameplay measurements: ground damage 8, air damage 5, 1 attack each, range 6.0 (edge-to-edge), cooldown 0.225 game seconds (3.6 loops), no attribute bonus."
+ },
+ "added_units": {
+  "CommandCenter,Bunker": "CommandCenter (18) and Bunker (24) exported via `python -m unismac.backends.sc2.extract static --unit commandcenter=18 --unit bunker=24` on SMAC_Maps/32x32_flat (SC2 4.10.0.75689), variant 0 only, no weapons. Observed radii (2.75 / 1.8125) and effective weapon-range radii are recorded in measured.json."
+ },
+ "units": [
+  {
+   "unit_type": 4,
+   "variant": 0,
+   "name": "Colossus",
+   "race": "protoss",
+   "attributes": [
+    "armored",
+    "mechanical",
+    "massive"
+   ],
+   "health_max": 200.0,
+   "shield_max": 150.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 1.0,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 10.0,
+     "attacks": 2,
+     "range": 7.0,
+     "cooldown": 1.5,
+     "bonus": [
+      [
+       "light",
+       5.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 4,
+   "variant": 1,
+   "name": "Colosus_RL",
+   "race": "protoss",
+   "attributes": [
+    "armored",
+    "mechanical",
+    "massive"
+   ],
+   "health_max": 200.0,
+   "shield_max": 150.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 1.0,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 10.0,
+     "attacks": 2,
+     "range": 7.0,
+     "cooldown": 1.5,
+     "bonus": [
+      [
+       "light",
+       5.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 9,
+   "variant": 0,
+   "name": "Baneling",
+   "race": "zerg",
+   "attributes": [
+    "biological"
+   ],
+   "health_max": 30.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.375,
+   "is_flying": false,
+   "movement_speed": 2.5,
+   "sight_range": 8.0,
+   "weapons": [],
+   "measured": {}
+  },
+  {
+   "unit_type": 9,
+   "variant": 1,
+   "name": "Baneling_RL",
+   "race": "zerg",
+   "attributes": [
+    "biological"
+   ],
+   "health_max": 30.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.375,
+   "is_flying": false,
+   "movement_speed": 2.5,
+   "sight_range": 8.0,
+   "weapons": [],
+   "measured": {}
+  },
+  {
+   "unit_type": 18,
+   "variant": 0,
+   "name": "CommandCenter",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "mechanical",
+    "structure"
+   ],
+   "health_max": 1500.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 2.75,
+   "is_flying": false,
+   "movement_speed": 0.0,
+   "sight_range": 11.0,
+   "weapons": [],
+   "measured": {}
+  },
+  {
+   "unit_type": 24,
+   "variant": 0,
+   "name": "Bunker",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "mechanical",
+    "structure"
+   ],
+   "health_max": 400.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 1.8125,
+   "is_flying": false,
+   "movement_speed": 0.0,
+   "sight_range": 10.0,
+   "weapons": [],
+   "measured": {}
+  },
+  {
+   "unit_type": 32,
+   "variant": 0,
+   "name": "SiegeTankSieged",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "mechanical"
+   ],
+   "health_max": 175.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.875,
+   "is_flying": false,
+   "movement_speed": 0.0,
+   "sight_range": 11.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 40.0,
+     "attacks": 1,
+     "range": 13.0,
+     "cooldown": 3.0,
+     "bonus": [
+      [
+       "armored",
+       30.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 33,
+   "variant": 0,
+   "name": "SiegeTank",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "mechanical"
+   ],
+   "health_max": 175.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.875,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 11.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 15.0,
+     "attacks": 1,
+     "range": 7.0,
+     "cooldown": 1.0400390625,
+     "bonus": [
+      [
+       "armored",
+       10.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 48,
+   "variant": 0,
+   "name": "Marine",
+   "race": "terran",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 45.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.375,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "any",
+     "damage": 6.0,
+     "attacks": 1,
+     "range": 5.0,
+     "cooldown": 0.86083984375,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 48,
+   "variant": 1,
+   "name": "Marine_RL",
+   "race": "terran",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 45.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.375,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "any",
+     "damage": 6.0,
+     "attacks": 1,
+     "range": 5.0,
+     "cooldown": 0.86083984375,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 49,
+   "variant": 0,
+   "name": "Reaper",
+   "race": "terran",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 60.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.375,
+   "is_flying": false,
+   "movement_speed": 3.75,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 4.0,
+     "attacks": 2,
+     "range": 5.0,
+     "cooldown": 1.10009765625,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 51,
+   "variant": 0,
+   "name": "Marauder",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "biological"
+   ],
+   "health_max": 125.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.5625,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 10.0,
+     "attacks": 1,
+     "range": 6.0,
+     "cooldown": 1.5,
+     "bonus": [
+      [
+       "armored",
+       10.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 51,
+   "variant": 1,
+   "name": "Marauder_RL",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "biological"
+   ],
+   "health_max": 125.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.5625,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 10.0,
+     "attacks": 1,
+     "range": 6.0,
+     "cooldown": 1.5,
+     "bonus": [
+      [
+       "armored",
+       10.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 52,
+   "variant": 0,
+   "name": "Thor",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "mechanical",
+    "massive"
+   ],
+   "health_max": 400.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 1.0,
+   "is_flying": false,
+   "movement_speed": 1.875,
+   "sight_range": 11.0,
+   "weapons": [
+    {
+     "target": "air",
+     "damage": 6.0,
+     "attacks": 4,
+     "range": 10.0,
+     "cooldown": 3.0,
+     "bonus": [
+      [
+       "light",
+       6.0
+      ]
+     ]
+    },
+    {
+     "target": "ground",
+     "damage": 30.0,
+     "attacks": 2,
+     "range": 7.0,
+     "cooldown": 1.280029296875,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 53,
+   "variant": 0,
+   "name": "Hellion",
+   "race": "terran",
+   "attributes": [
+    "light",
+    "mechanical"
+   ],
+   "health_max": 90.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.625,
+   "is_flying": false,
+   "movement_speed": 4.25,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 8.0,
+     "attacks": 1,
+     "range": 5.0,
+     "cooldown": 2.5,
+     "bonus": [
+      [
+       "light",
+       6.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 54,
+   "variant": 0,
+   "name": "Medivac",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "mechanical"
+   ],
+   "health_max": 150.0,
+   "shield_max": 0.0,
+   "energy_max": 200.0,
+   "armor": 1.0,
+   "radius": 0.75,
+   "is_flying": true,
+   "movement_speed": 2.5,
+   "sight_range": 11.0,
+   "weapons": [],
+   "measured": {}
+  },
+  {
+   "unit_type": 54,
+   "variant": 1,
+   "name": "Medivac_RL",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "mechanical"
+   ],
+   "health_max": 150.0,
+   "shield_max": 0.0,
+   "energy_max": 200.0,
+   "armor": 1.0,
+   "radius": 0.75,
+   "is_flying": true,
+   "movement_speed": 2.75,
+   "sight_range": 11.0,
+   "weapons": [],
+   "measured": {}
+  },
+  {
+   "unit_type": 57,
+   "variant": 0,
+   "name": "Battlecruiser",
+   "race": "terran",
+   "attributes": [
+    "armored",
+    "mechanical",
+    "massive"
+   ],
+   "health_max": 550.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 3.0,
+   "radius": 1.25,
+   "is_flying": true,
+   "movement_speed": 1.875,
+   "sight_range": 12.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 8.0,
+     "attacks": 1,
+     "range": 6.0,
+     "cooldown": 0.225,
+     "bonus": []
+    },
+    {
+     "target": "air",
+     "damage": 5.0,
+     "attacks": 1,
+     "range": 6.0,
+     "cooldown": 0.225,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 73,
+   "variant": 0,
+   "name": "Zealot",
+   "race": "protoss",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 100.0,
+   "shield_max": 50.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.5,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 8.0,
+     "attacks": 2,
+     "range": 0.10009765625,
+     "cooldown": 1.199951171875,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 73,
+   "variant": 1,
+   "name": "Zealot_RL",
+   "race": "protoss",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 100.0,
+   "shield_max": 50.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.5,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 8.0,
+     "attacks": 2,
+     "range": 0.10009765625,
+     "cooldown": 1.199951171875,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 74,
+   "variant": 0,
+   "name": "Stalker",
+   "race": "protoss",
+   "attributes": [
+    "armored",
+    "mechanical"
+   ],
+   "health_max": 80.0,
+   "shield_max": 80.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.625,
+   "is_flying": false,
+   "movement_speed": 2.953125,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "any",
+     "damage": 13.0,
+     "attacks": 1,
+     "range": 6.0,
+     "cooldown": 1.8701171875,
+     "bonus": [
+      [
+       "armored",
+       5.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 74,
+   "variant": 1,
+   "name": "Stalker_RL",
+   "race": "protoss",
+   "attributes": [
+    "armored",
+    "mechanical"
+   ],
+   "health_max": 80.0,
+   "shield_max": 80.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.625,
+   "is_flying": false,
+   "movement_speed": 2.953125,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "any",
+     "damage": 13.0,
+     "attacks": 1,
+     "range": 6.0,
+     "cooldown": 1.8701171875,
+     "bonus": [
+      [
+       "armored",
+       5.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 78,
+   "variant": 0,
+   "name": "Phoenix",
+   "race": "protoss",
+   "attributes": [
+    "light",
+    "mechanical"
+   ],
+   "health_max": 120.0,
+   "shield_max": 60.0,
+   "energy_max": 200.0,
+   "armor": 0.0,
+   "radius": 0.75,
+   "is_flying": true,
+   "movement_speed": 4.25,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "air",
+     "damage": 5.0,
+     "attacks": 2,
+     "range": 5.0,
+     "cooldown": 1.10009765625,
+     "bonus": [
+      [
+       "light",
+       5.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 80,
+   "variant": 0,
+   "name": "VoidRay",
+   "race": "protoss",
+   "attributes": [
+    "armored",
+    "mechanical"
+   ],
+   "health_max": 150.0,
+   "shield_max": 100.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 1.0,
+   "is_flying": true,
+   "movement_speed": 2.5,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "any",
+     "damage": 6.0,
+     "attacks": 1,
+     "range": 6.0,
+     "cooldown": 0.5,
+     "bonus": [
+      [
+       "armored",
+       4.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 83,
+   "variant": 0,
+   "name": "Immortal",
+   "race": "protoss",
+   "attributes": [
+    "armored",
+    "mechanical"
+   ],
+   "health_max": 200.0,
+   "shield_max": 100.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.75,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 20.0,
+     "attacks": 1,
+     "range": 6.0,
+     "cooldown": 1.449951171875,
+     "bonus": [
+      [
+       "armored",
+       30.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 98,
+   "variant": 0,
+   "name": "SpineCrawler",
+   "race": "zerg",
+   "attributes": [
+    "armored",
+    "biological",
+    "structure"
+   ],
+   "health_max": 300.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 2.0,
+   "radius": 1.125,
+   "is_flying": false,
+   "movement_speed": 0.0,
+   "sight_range": 11.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 25.0,
+     "attacks": 1,
+     "range": 7.0,
+     "cooldown": 1.85009765625,
+     "bonus": [
+      [
+       "armored",
+       5.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 99,
+   "variant": 0,
+   "name": "SporeCrawler",
+   "race": "zerg",
+   "attributes": [
+    "armored",
+    "biological",
+    "structure"
+   ],
+   "health_max": 400.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 1.0,
+   "radius": 0.875,
+   "is_flying": false,
+   "movement_speed": 0.0,
+   "sight_range": 11.0,
+   "weapons": [
+    {
+     "target": "air",
+     "damage": 15.0,
+     "attacks": 1,
+     "range": 7.0,
+     "cooldown": 0.86083984375,
+     "bonus": [
+      [
+       "biological",
+       15.0
+      ]
+     ]
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 105,
+   "variant": 0,
+   "name": "Zergling",
+   "race": "zerg",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 35.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.375,
+   "is_flying": false,
+   "movement_speed": 2.953125,
+   "sight_range": 8.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 5.0,
+     "attacks": 1,
+     "range": 0.10009765625,
+     "cooldown": 0.696044921875,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 105,
+   "variant": 1,
+   "name": "Zergling_RL",
+   "race": "zerg",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 35.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.375,
+   "is_flying": false,
+   "movement_speed": 2.953125,
+   "sight_range": 8.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 5.0,
+     "attacks": 1,
+     "range": 0.10009765625,
+     "cooldown": 0.696044921875,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 107,
+   "variant": 0,
+   "name": "Hydralisk",
+   "race": "zerg",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 90.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.625,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "any",
+     "damage": 12.0,
+     "attacks": 1,
+     "range": 5.0,
+     "cooldown": 0.824951171875,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 107,
+   "variant": 1,
+   "name": "Hydralisk_RL",
+   "race": "zerg",
+   "attributes": [
+    "light",
+    "biological"
+   ],
+   "health_max": 80.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.625,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "any",
+     "damage": 12.0,
+     "attacks": 1,
+     "range": 5.0,
+     "cooldown": 0.824951171875,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 109,
+   "variant": 0,
+   "name": "Ultralisk",
+   "race": "zerg",
+   "attributes": [
+    "armored",
+    "biological",
+    "massive"
+   ],
+   "health_max": 500.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 2.0,
+   "radius": 1.0,
+   "is_flying": false,
+   "movement_speed": 2.953125,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 35.0,
+     "attacks": 1,
+     "range": 1.0,
+     "cooldown": 0.860107421875,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 126,
+   "variant": 0,
+   "name": "Queen",
+   "race": "zerg",
+   "attributes": [
+    "biological",
+    "psionic"
+   ],
+   "health_max": 175.0,
+   "shield_max": 0.0,
+   "energy_max": 200.0,
+   "armor": 1.0,
+   "radius": 0.875,
+   "is_flying": false,
+   "movement_speed": 0.9375,
+   "sight_range": 9.0,
+   "weapons": [
+    {
+     "target": "air",
+     "damage": 9.0,
+     "attacks": 1,
+     "range": 8.0,
+     "cooldown": 1.0,
+     "bonus": []
+    },
+    {
+     "target": "ground",
+     "damage": 4.0,
+     "attacks": 2,
+     "range": 5.0,
+     "cooldown": 1.0,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  },
+  {
+   "unit_type": 484,
+   "variant": 0,
+   "name": "HellionTank",
+   "race": "terran",
+   "attributes": [
+    "light",
+    "biological",
+    "mechanical"
+   ],
+   "health_max": 135.0,
+   "shield_max": 0.0,
+   "energy_max": 0.0,
+   "armor": 0.0,
+   "radius": 0.625,
+   "is_flying": false,
+   "movement_speed": 2.25,
+   "sight_range": 10.0,
+   "weapons": [
+    {
+     "target": "ground",
+     "damage": 18.0,
+     "attacks": 1,
+     "range": 2.0,
+     "cooldown": 2.0,
+     "bonus": []
+    }
+   ],
+   "measured": {}
+  }
+ ]
+}

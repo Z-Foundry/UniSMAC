@@ -1,0 +1,258 @@
+{
+  "format": 1,
+  "sc2_version": "4.10.0.75689",
+  "source": "Empirical per-map ability and passive-behavior survey on SC2 4.10.0.75689 via s2clientprotocol (RequestQuery for Zealot Charge ability 1819; controlled gameplay probes for passive idle behavior).",
+  "notes": "maps[map_id] lists per-player map-level toggles: `charge` lists player IDs whose Zealots have Charge (ability 1819) enabled on that map; `passive` lists player IDs whose idle units do not auto-acquire and retreat 5 tiles when attacked. Only maps verified via live SC2 probes are listed; maps without a `passive` key were not probed.",
+  "maps": {
+    "SMAC_Maps/1c3s5z": {
+      "charge": []
+    },
+    "SMAC_Maps/2s3z": {
+      "charge": []
+    },
+    "SMAC_Maps/3s5z": {
+      "charge": []
+    },
+    "SMAC_Maps/3s_vs_5z": {
+      "charge": []
+    },
+    "new_maps/10m_vs_11m": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/1c3s5z": {
+      "charge": [],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/25m": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/27m_vs_30m": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/2c_vs_64zg": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/2m_vs_1z": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/2s3z": {
+      "charge": [],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/2s_vs_1sc": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/2vr_vs_3sc": {
+      "charge": [],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/3hl_vs_24zl": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/3m": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/3rp_vs_24zl": {
+      "charge": [],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/3rp_vs_5zl": {
+      "charge": [
+        1,
+        2
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/3s5z": {
+      "charge": [],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/3s5z_vs_3s6z": {
+      "charge": [],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/3s_vs_5z": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/3st_vs_5zl": {
+      "charge": [
+        1,
+        2
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/5m_vs_6m": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/6h_vs_8z": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/6m_vs_10m": {
+      "charge": [],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/7q_vs_2bc": {
+      "charge": [
+        1,
+        2
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/8m": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/8m_vs_9m": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/MMM": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/MMM2": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/bane_vs_bane": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/corridor": {
+      "charge": [
+        1
+      ],
+      "passive": []
+    },
+    "new_maps/mmmt": {
+      "charge": [
+        1,
+        2
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/mmmt_vs_zhb": {
+      "charge": [
+        1,
+        2
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/mmmt_vs_zspi": {
+      "charge": [
+        1,
+        2
+      ],
+      "passive": [
+        1
+      ]
+    },
+    "new_maps/so_many_baneling": {
+      "charge": [
+        1
+      ],
+      "passive": [
+        1
+      ]
+    }
+  }
+}

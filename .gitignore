@@ -1,0 +1,22 @@
+# Python build & packaging artifacts
+/dist/
+/build/
+*.egg-info/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Legacy local native extension artifacts (use standalone `zgame` wheel instead)
+unismac/backends/zgame/_zgame*.so
+unismac/backends/zgame/_zgame*.pyd
+unismac/backends/zgame/_zgame.build.json
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# OS & editor files
+.DS_Store
+Thumbs.db

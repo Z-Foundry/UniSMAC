@@ -1,0 +1,140 @@
+UniSMAC
+Copyright (c) 2026 Jiale Wang
+Repository: https://github.com/Z-Foundry/UniSMAC
+
+This software is licensed under the MIT License (see LICENSE).
+
+================================================================================
+THIRD-PARTY NOTICES AND ATTRIBUTIONS
+================================================================================
+
+UniSMAC incorporates derivative adaptations and re-implementations of benchmark
+specifications, scenario tables, observation/reward/action semantics, and
+decision-tree opponent scripts from the following open-source projects:
+
+--------------------------------------------------------------------------------
+1. SMAC (StarCraft Multi-Agent Challenge)
+   Repository: https://github.com/oxwhirl/smac
+   License: MIT License
+   Scope in UniSMAC:
+     - unismac/presets/smac.py
+     - unismac/scenarios/data.py (SMAC scenario metadata)
+     - unismac/env/{actions,catalog,features,reward,termination,terrain,units,visibility}.py
+--------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2019 whirl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------------
+2. SMACv2
+   Repository: https://github.com/oxwhirl/smacv2
+   License: MIT License
+   Scope in UniSMAC:
+     - unismac/presets/smacv2.py
+     - unismac/scenarios/data.py (SMACv2 scenario metadata)
+     - unismac/env/{generators,spotter,visibility}.py
+--------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2019 whirl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------------
+3. SMAC-Hard
+   Repository: https://github.com/devindeng94/smac-hard
+   License: MIT License
+   Scope in UniSMAC:
+     - unismac/env/scripted/ (45 scripted opponent policies and helper utilities)
+     - unismac/env/abilities.py
+     - unismac/presets/smac_hard.py
+     - unismac/scenarios/data.py (SMAC-Hard scenario metadata)
+--------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2024 devin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------------
+4. Runtime and Optional Dependencies (Not Bundled)
+--------------------------------------------------------------------------------
+
+- NumPy (BSD-3-Clause): https://github.com/numpy/numpy
+- ZGame / zfoundry-zgame (MIT): https://github.com/Z-Foundry/ZGame (companion Rust acceleration engine)
+- PySC2 (Apache-2.0, optional [sc2] extra): https://github.com/google-deepmind/pysc2
+- s2clientprotocol (MIT, optional [sc2] extra): https://github.com/Blizzard/s2client-proto
+- protobuf (BSD-3-Clause, optional [sc2] extra): https://github.com/protocolbuffers/protobuf
+
+================================================================================
+TRADEMARK, NON-AFFILIATION, AND ASSET PROVENANCE DISCLAIMER
+================================================================================
+
+StarCraft and StarCraft II are registered trademarks or trademarks of Blizzard
+Entertainment, Inc. in the U.S. and/or other countries. UniSMAC is an
+independent open-source multi-agent reinforcement learning research library and
+is not affiliated with, endorsed by, or sponsored by Blizzard Entertainment,
+Inc.
+
+This repository does NOT distribute any StarCraft II game binaries, proprietary
+game media, or original .SC2Map files. The JSON and NPZ files under
+unismac/assets/ and unismac/scenarios/ contain only simplified numerical grids
+(32x32 / 40x40 passability and elevation arrays), unit balance tables, and
+initial spawn coordinates derived via Blizzard's MIT-licensed s2clientprotocol
+API and black-box empirical gameplay measurements for benchmark reproducibility.
+Users who wish to run the optional live SC2 backend or regenerate derived assets
+locally from SC2PATH must obtain StarCraft II and community map files separately
+and comply with the Blizzard StarCraft II AI and Machine Learning License.

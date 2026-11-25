@@ -1,0 +1,60 @@
+title = "Z-Foundry Public Release Sanitization & Secret Scanning Rules"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist for public organization/package names, standard bitmasks, and scanner config itself"
+paths = [
+  '''^\.gitleaks\.toml$''',
+]
+regexTarget = "line"
+regexes = [
+  '''(?i)\bz-foundry\b''',
+  '''(?i)\bzfoundry[-_]zgame\b''',
+  '''(?i)\b0x7fffffff\b''',
+]
+
+[[rules]]
+id = "internal-cluster-paths"
+description = "Block cluster storage paths, member IDs, TOS buckets, and local temporary paths"
+regex = '''(?i)(/project_c20250508|/projects/c20250508|240503027|/mnt/project-storage|fset-VeYFow|buckets/c20250508|/tmp/zgame-m\d+|/tmp/zgame-survey|/tmp/wt-p\d+|/root/\.(?:ssh|cargo|local|config))'''
+  [rules.allowlist]
+  description = "Allow CI Docker build container /root/.cargo path-remap and path-audit lines"
+  paths = [
+    '''^\.github/workflows/(?:ci|release)\.yml$''',
+  ]
+  regexes = [
+    '''(?i)--remap-path-prefix=/root/\.cargo=cargo''',
+    '''(?i)b'/root/\.cargo'\s*\)''',
+  ]
+
+[[rules]]
+id = "internal-mirrors-and-infra"
+description = "Block internal mirrors, proxy scripts, and cluster CPU/disk quota notes"
+regex = '''(?i)(mirrors\.ivolces\.com|rsproxy\.cn|pypi\.tuna\.tsinghua\.edu\.cn|mirrors\.ustc\.edu\.cn|github_connect_proxy|/proc/pressure/cpu|Disk quota exceeded|\bTOS\s*\x{6876}\b)'''
+
+[[rules]]
+id = "internal-repos-and-identities"
+description = "Block private sibling repository names, worktree names, and personal handles"
+regex = '''(?i)(\b0Pinky0\b|\bzrl\b|\bsmac-research\b|\brl-framework-research\b|\bzfoundry-preservation\b|\bwt-zg1\b|\bsmac-mn3\b|\bMA-NeuPL\b|\bsts2-agent-bench\b|GameAI/private|private/hok|\bkaiwudrl\b|\.\./zgame\b)'''
+
+[[rules]]
+id = "internal-parent-repo-leak"
+description = "Block private parent repository, internal docs, and research path leaks"
+regex = '''(?i)(\bsmac-alignment\b|\bsmac_alignment\b|\bsmac-align\b|docs/sc2-analyse|sc2-analyse|\bresearch/align_diag/|\bSTATUS\.md\b|\bAGENTS\.md\b|\bdecisions\.md\b|\bcharter\.md\b|docs/m\d+\.md)'''
+
+[[rules]]
+id = "reverse-engineering-artifacts"
+description = "Block reverse-engineering build tags, virtual addresses, evidence IDs, and internal C++ symbols"
+regex = '''(?i)(\bB75689\b|\bE-0\d\d\b|\bCG-\d\d\b|\bBG-\d\d\b|CWeaponLegacy|CCaptain|CAIArmyMicro|CSyncLoop|COrderAttack|CAbilMove|AIDefaultCombatPriority|CaptainD7|COMBAT_PRIORITY_TABLE|native_call_for_help|\be027\b|terrain_b01|\b0x[0-9a-f]{5,7}\b)'''
+
+[[rules]]
+id = "cjk-outside-readme-zh"
+description = "Block Chinese characters outside README_zh.md"
+regex = '''[\x{4e00}-\x{9fff}]'''
+  [rules.allowlist]
+  description = "Allow Chinese in README_zh.md only"
+  paths = [
+    '''^README_zh\.md$''',
+  ]

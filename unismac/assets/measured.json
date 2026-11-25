@@ -1,0 +1,353 @@
+{
+  "format": 1,
+  "sc2_version": "4.10.0.75689",
+  "source": "Empirical black-box gameplay measurements on SC2 4.10.0.75689 via s2clientprotocol (kinematics, combat timing, splash bounds, Zealot charge, building range radii, and follow-lock delays).",
+  "units_of_measure": {
+    "acceleration": "tiles/loop^2",
+    "deceleration": "tiles/loop^2",
+    "heading_blend": "fraction of remaining heading error closed per loop",
+    "facing_rate": "rad/loop (affects facing observation)",
+    "attack_windup": "loops from facing alignment to firing",
+    "attack_arc": "rad, maximum residual angle to begin an attack",
+    "cooldown_jitter_min": "loops, lower bound of random U(min, max) added to weapon cooldown",
+    "cooldown_jitter_max": "loops, upper bound of random weapon cooldown jitter",
+    "projectile_speed": "tiles/loop, tracks target center",
+    "projectile_delay": "loops from projectile arrival to damage application",
+    "projectile_offset": "tiles, launch offset from attacker center",
+    "attack_spacing": "loops between consecutive hits of a multi-attack weapon",
+    "hit_slow_factor": "movement speed multiplier applied on hit",
+    "hit_slow_loops": "loops duration of on-hit slow (refreshed on re-hit)",
+    "shield_regen_delay": "loops after last damage before shield regeneration starts",
+    "shield_regen_rate": "shield/loop",
+    "health_regen_rate": "health/loop (continuous)",
+    "projectile_*_air": "air-weapon projectile parameters (same semantics as unsuffixed ground keys)",
+    "projectile_to_center": "1 if ground projectile travels to target center instead of edge (not inherited by air)",
+    "projectile_instant_edge": "tiles edge-to-edge threshold for same-loop instant hit on ground weapon (not inherited by air)",
+    "turret_rate": "rad/loop, turret turn rate before firing (replaces facing_rate)",
+    "min_range": "tiles edge-to-edge minimum weapon range; unit holds order without firing or moving inside it",
+    "splash_radial_radius_k / splash_radial_fraction_k": "radial splash ring k damage fraction when center-to-victim-edge <= radius",
+    "splash_perp_half_length / splash_perp_half_width": "tiles, unattenuated splash segment through primary target perpendicular to attack direction",
+    "splash_forward_length / splash_forward_half_width": "tiles, unattenuated splash segment extending forward from attacker edge along attack direction",
+    "splash_friendly": "1 if splash damages allied units, 0 otherwise",
+    "suicide_*": "suicide attack: detonates at edge <= trigger_range dealing damage + light bonus, or unarmored damage_structure to structures",
+    "barrier_absorb / barrier_duration / barrier_cooldown": "Immortal Barrier: triggered on damage (initial hit applies normally); absorb amount, duration in loops (inclusive of trigger loop + duration), and cooldown in loops.",
+    "charge_*": "Zealot Charge (map-gated via map_abilities.json): charge_speed tiles/loop; triggers within charge_range_small/large by target radius, lasts up to charge_max_loops with charge_cooldown, adds unarmored charge_bonus on first strike against stationary target",
+    "range_radius": "tiles, effective combat/acquisition radius when config.range_radius=\"measured\" (measured along x-axis for structures: Spore Crawler 0.63, Command Center 2.51, Bunker 1.51)",
+    "follow_lock": "loops; post-fire hold duration L before chasing out-of-range targets (active when config.follow_lock=True). During the L loops after firing, the unit does not chase; on loop L it chases if strictly out of range, otherwise only when exceeding range + follow_slop (1.0)."
+  },
+  "note": "Omitted keys indicate instantaneous behavior or non-applicable mechanics (e.g., ground units have no acceleration lag; omitted projectile keys mean instant hit; omitted regen keys mean no regen). Among *_RL variants, only Medivac_RL differs in turning kinematics (interpolated via rl_turn='curve'). Colossus, Immortal, and SiegeTankSieged keep fixed observed facing. Queen ground projectiles apply instantaneously when edge-to-edge distance <= 3.0. Immortal Barrier cooldown is ~717 loops (32 game seconds).",
+  "units": [
+    {
+      "unit_type": 48,
+      "variant": 0,
+      "name": "Marine",
+      "measured": {
+        "facing_rate": 1.0923,
+        "attack_windup": 1,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "follow_lock": 13
+      }
+    },
+    {
+      "unit_type": 51,
+      "variant": 0,
+      "name": "Marauder",
+      "measured": {
+        "facing_rate": 1.0923,
+        "attack_windup": 0,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "projectile_speed": 0.96875,
+        "projectile_delay": 1,
+        "projectile_offset": 0,
+        "hit_slow_factor": 0.5,
+        "hit_slow_loops": 24,
+        "follow_lock": 1
+      }
+    },
+    {
+      "unit_type": 105,
+      "variant": 0,
+      "name": "Zergling",
+      "measured": {
+        "facing_rate": 1.0923,
+        "attack_windup": 3,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "health_regen_rate": 0.01708984375
+      }
+    },
+    {
+      "unit_type": 107,
+      "variant": 0,
+      "name": "Hydralisk",
+      "measured": {
+        "facing_rate": 1.0923,
+        "attack_windup": 4,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "projectile_speed": 1,
+        "projectile_delay": 0,
+        "projectile_offset": 0.75
+      }
+    },
+    {
+      "unit_type": 74,
+      "variant": 0,
+      "name": "Stalker",
+      "measured": {
+        "facing_rate": 1.0923,
+        "attack_windup": 3,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "projectile_speed": 1,
+        "projectile_delay": 2,
+        "projectile_offset": 0.625,
+        "follow_lock": 9
+      }
+    },
+    {
+      "unit_type": 73,
+      "variant": 0,
+      "name": "Zealot",
+      "measured": {
+        "facing_rate": 1.0923,
+        "attack_windup": 0,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "attack_spacing": 4,
+        "shield_regen_delay": 160,
+        "shield_regen_rate": 0.125,
+        "charge_speed": 0.309326171875,
+        "charge_range_small": 5.0,
+        "charge_range_large": 6.0,
+        "charge_small_radius": 0.5,
+        "charge_max_loops": 55,
+        "charge_cooldown": 159,
+        "charge_bonus": 8.0,
+        "follow_lock": 9
+      }
+    },
+    {
+      "unit_type": 54,
+      "variant": 0,
+      "name": "Medivac",
+      "measured": {
+        "acceleration": 0.0087890625,
+        "deceleration": 0.009033203125,
+        "heading_blend": 0.52,
+        "facing_rate": 1.0923
+      }
+    },
+    {
+      "unit_type": 54,
+      "variant": 1,
+      "name": "Medivac_RL",
+      "measured": {
+        "acceleration": 0.009033203125,
+        "deceleration": 0.009033203125,
+        "heading_blend": 0.515,
+        "turn_rate": 0.25,
+        "facing_rate": 1.0923
+      }
+    },
+    {
+      "unit_type": 126,
+      "variant": 0,
+      "name": "Queen",
+      "measured": {
+        "attack_windup": 3,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "attack_spacing": 4,
+        "projectile_delay": 2,
+        "projectile_speed": 2.6875,
+        "projectile_offset": 0.25,
+        "projectile_to_center": 1,
+        "projectile_instant_edge": 3.0,
+        "projectile_delay_air": 2,
+        "projectile_speed_air": 2.09375,
+        "projectile_offset_air": 0
+      }
+    },
+    {
+      "unit_type": 49,
+      "variant": 0,
+      "name": "Reaper",
+      "measured": {
+        "attack_windup": 0,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "attack_spacing": 1
+      }
+    },
+    {
+      "unit_type": 80,
+      "variant": 0,
+      "name": "VoidRay",
+      "measured": {
+        "attack_windup": 2,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": 0,
+        "cooldown_jitter_max": 0
+      }
+    },
+    {
+      "unit_type": 53,
+      "variant": 0,
+      "name": "Hellion",
+      "measured": {
+        "attack_windup": 5,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "turret_rate": 1.05,
+        "splash_forward_length": 6,
+        "splash_forward_half_width": 0.15,
+        "splash_friendly": 0
+      }
+    },
+    {
+      "unit_type": 78,
+      "variant": 0,
+      "name": "Phoenix",
+      "measured": {
+        "attack_windup": 4,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "turret_rate": 0.625,
+        "attack_spacing": 0,
+        "projectile_delay_air": 5,
+        "projectile_speed_air": 1.0625,
+        "projectile_offset_air": 0
+      }
+    },
+    {
+      "unit_type": 57,
+      "variant": 0,
+      "name": "Battlecruiser",
+      "measured": {
+        "attack_windup": 2,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": 0,
+        "cooldown_jitter_max": 0,
+        "projectile_delay": 7,
+        "projectile_speed": 2.375,
+        "projectile_offset": 0,
+        "projectile_delay_air": 3,
+        "projectile_speed_air": 1.125,
+        "projectile_offset_air": 0
+      }
+    },
+    {
+      "unit_type": 33,
+      "variant": 0,
+      "name": "SiegeTank",
+      "measured": {
+        "attack_windup": 3,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2
+      }
+    },
+    {
+      "unit_type": 32,
+      "variant": 0,
+      "name": "SiegeTankSieged",
+      "measured": {
+        "attack_windup": 9,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "min_range": 2,
+        "splash_radial_radius_1": 0.4687,
+        "splash_radial_fraction_1": 1,
+        "splash_radial_radius_2": 0.7812,
+        "splash_radial_fraction_2": 0.5,
+        "splash_radial_radius_3": 1.25,
+        "splash_radial_fraction_3": 0.25,
+        "splash_friendly": 1
+      }
+    },
+    {
+      "unit_type": 4,
+      "variant": 0,
+      "name": "Colossus",
+      "measured": {
+        "attack_windup": 3,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "attack_spacing": 0,
+        "projectile_delay": 3,
+        "projectile_speed": 4,
+        "projectile_offset": 0,
+        "splash_perp_half_length": 1.4,
+        "splash_perp_half_width": 0.1,
+        "splash_friendly": 0
+      }
+    },
+    {
+      "unit_type": 83,
+      "variant": 0,
+      "name": "Immortal",
+      "measured": {
+        "attack_windup": 5,
+        "attack_arc": 0.17,
+        "cooldown_jitter_min": -1,
+        "cooldown_jitter_max": 2,
+        "barrier_absorb": 100,
+        "barrier_duration": 46,
+        "barrier_cooldown": 717
+      }
+    },
+    {
+      "unit_type": 9,
+      "variant": 0,
+      "name": "Baneling",
+      "measured": {
+        "suicide_trigger_range": 0.41,
+        "suicide_damage": 16,
+        "suicide_bonus_light": 19,
+        "suicide_damage_structure": 80,
+        "splash_radial_radius_1": 2.2,
+        "splash_radial_fraction_1": 1,
+        "splash_friendly": 0
+      }
+    },
+    {
+      "unit_type": 99,
+      "variant": 0,
+      "name": "SporeCrawler",
+      "measured": {
+        "range_radius": 0.63
+      }
+    },
+    {
+      "unit_type": 18,
+      "variant": 0,
+      "name": "CommandCenter",
+      "measured": {
+        "range_radius": 2.51
+      }
+    },
+    {
+      "unit_type": 24,
+      "variant": 0,
+      "name": "Bunker",
+      "measured": {
+        "range_radius": 1.51
+      }
+    }
+  ]
+}

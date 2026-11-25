@@ -1,0 +1,48 @@
+{
+  "format": 1,
+  "sc2_version": "4.10.0.75689",
+  "source": "Empirical per-map unit stat override survey on SC2 4.10.0.75689 via s2clientprotocol (RequestObservation across SMAC-Hard maps verifying pre-applied upgrades such as Combat Shield).",
+  "notes": "maps[map_id] defines Scenario.unit_overrides overriding StaticData health_max/shield_max for matching (owner, unit_type, variant) units at spawn.",
+  "maps": {
+    "new_maps/6m_vs_10m": [
+      {
+        "owner": 1,
+        "unit_type": 48,
+        "variant": 0,
+        "name": "Marine",
+        "health_max": 55.0,
+        "reason": "Player 1 has ShieldWall (Combat Shield, +10 HP) researched"
+      }
+    ],
+    "new_maps/mmmt": [
+      {
+        "owner": 1,
+        "unit_type": 48,
+        "variant": 0,
+        "name": "Marine",
+        "health_max": 55.0,
+        "reason": "Player 1 has ShieldWall (Combat Shield, +10 HP) researched"
+      }
+    ],
+    "new_maps/mmmt_vs_zhb": [
+      {
+        "owner": 1,
+        "unit_type": 48,
+        "variant": 0,
+        "name": "Marine",
+        "health_max": 55.0,
+        "reason": "Player 1 has ShieldWall (Combat Shield, +10 HP) researched"
+      }
+    ],
+    "new_maps/mmmt_vs_zspi": [
+      {
+        "owner": 1,
+        "unit_type": 48,
+        "variant": 0,
+        "name": "Marine",
+        "health_max": 55.0,
+        "reason": "Player 1 has ShieldWall (Combat Shield, +10 HP) researched"
+      }
+    ]
+  }
+}

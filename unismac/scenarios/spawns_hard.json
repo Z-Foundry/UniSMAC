@@ -1,0 +1,5018 @@
+{
+  "format": 1,
+  "sc2_version": "4.10.0.75689",
+  "generator": "unismac.backends.sc2.extract",
+  "benchmark": "smac-hard",
+  "scenarios": {
+    "3m": {
+      "map_id": "new_maps/3m",
+      "map_sha256": "95fddb9acd3e1ad5471049a729125490458960b047dda9d0766ba8dcb7b94fd4",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/3m",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "8m": {
+      "map_id": "new_maps/8m",
+      "map_sha256": "a7e79282ba7d75bd4c1a39b34f73c5483c5e2e9071e53f05e752b1c52f1b8b27",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 16.75
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/8m",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "25m": {
+      "map_id": "new_maps/25m",
+      "map_sha256": "a63c89256a22f1fcc606b4c6430295e35e50115b354efaa83b0e4b5e98808ef6",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 14.5
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/25m",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "5m_vs_6m": {
+      "map_id": "new_maps/5m_vs_6m",
+      "map_sha256": "856ae6c26746b856a71e1dc422eaf08dab803f2bc4e2fefb37f2e6c5ed30d137",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/5m_vs_6m",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "8m_vs_9m": {
+      "map_id": "new_maps/8m_vs_9m",
+      "map_sha256": "1e3d942859f446e44b15cca3bf28c83d2d48feae43b2477b10220f26817d2b3b",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 15.25
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/8m_vs_9m",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "10m_vs_11m": {
+      "map_id": "new_maps/10m_vs_11m",
+      "map_sha256": "426a2457f81d7c76ec0cba5eac1ed79b255e57341e71db6065b852104d3c04eb",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/10m_vs_11m",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "27m_vs_30m": {
+      "map_id": "new_maps/27m_vs_30m",
+      "map_sha256": "15e5a594bfffd75954ec16cf24dffe78bb7389c7e5fab4556c670af996a25d75",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.25,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 10.5,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 7.5,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 13.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 11.25,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 24.5,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 21.5,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 13.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 25.25,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 18.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 20.75,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 13.75
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/27m_vs_30m",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "MMM": {
+      "map_id": "new_maps/MMM",
+      "map_sha256": "d446d1b24269d3d50414ca35693d198296b1621a3f310c989b7cab3f11d01f48",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48,
+        "51,0": 51,
+        "54,0": 54
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 8.1689453125,
+          "y": 16.966064453125
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 8.169189453125,
+          "y": 15.033447265625
+        },
+        {
+          "owner": 1,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 22.1689453125,
+          "y": 16.966064453125
+        },
+        {
+          "owner": 2,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 22.169189453125,
+          "y": 15.033447265625
+        },
+        {
+          "owner": 2,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/MMM",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "MMM2": {
+      "map_id": "new_maps/MMM2",
+      "map_sha256": "af5c05816249775b8bd3bff3d537cd4a743879898e8041d460d8d78d8596ba20",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48,
+        "51,0": 51,
+        "54,0": 54
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 8.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 9.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 8.1689453125,
+          "y": 16.966064453125
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 8.169189453125,
+          "y": 15.033447265625
+        },
+        {
+          "owner": 1,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 23.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 22.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 22.169189453125,
+          "y": 15.033447265625
+        },
+        {
+          "owner": 2,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.3125
+        },
+        {
+          "owner": 2,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 24.6875,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/MMM2",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "2s3z": {
+      "map_id": "new_maps/2s3z",
+      "map_sha256": "4e1985fa6a891919f9d9e75106c8996c057cc7429f36ec0a2c17871578da07df",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "73,0": 73,
+        "74,0": 74
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 9.94140625,
+          "y": 15.50537109375
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 9.751708984375,
+          "y": 16.751708984375
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 8.248046875,
+          "y": 16.751708984375
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.94140625,
+          "y": 15.50537109375
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.751708984375,
+          "y": 16.751708984375
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 22.248046875,
+          "y": 16.751708984375
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/2s3z",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "3s5z": {
+      "map_id": "new_maps/3s5z",
+      "map_sha256": "fa2016a311f62a2d7fa4fb682709947015a4da9ae18d06c3cda4f4711030e1f7",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "73,0": 73,
+        "74,0": 74
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 10.1884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 8.5,
+          "y": 17.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 8.0,
+          "y": 15.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 9.5,
+          "y": 17.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 7.5,
+          "y": 16.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 9.0,
+          "y": 18.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 24.1884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 22.5,
+          "y": 17.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 22.0,
+          "y": 15.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.5,
+          "y": 17.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.0,
+          "y": 18.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/3s5z",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "3s5z_vs_3s6z": {
+      "map_id": "new_maps/3s5z_vs_3s6z",
+      "map_sha256": "bdade50c9765efdcad4cea417b0a1b20f33be8617d728c4f1aab5aea5d57cfab",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "73,0": 73,
+        "74,0": 74
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 10.1884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 8.5,
+          "y": 17.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 8.0,
+          "y": 15.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 9.5,
+          "y": 17.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 7.5,
+          "y": 16.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 9.0,
+          "y": 18.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 24.1884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 22.5,
+          "y": 17.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 22.0,
+          "y": 15.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.5,
+          "y": 17.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.0,
+          "y": 18.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 21.0,
+          "y": 15.5
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/3s5z_vs_3s6z",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "3s_vs_5z": {
+      "map_id": "new_maps/3s_vs_5z",
+      "map_sha256": "33d1f1ecc540948c059b232a8f7e815f359efd8a8621cef4090f4bd5801d3cbd",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "73,0": 73,
+        "74,0": 74
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 10.1884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.0615234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.9384765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.9384765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 22.0615234375,
+          "y": 16.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/3s_vs_5z",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "1c3s5z": {
+      "map_id": "new_maps/1c3s5z",
+      "map_sha256": "ecc9c34097ca897be4fc7b0d58d01979879ff056beff19a95c4164bf3c954b60",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "4,0": 4,
+        "73,0": 73,
+        "74,0": 74
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 4,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 9.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 10.1884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 8.5,
+          "y": 17.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 8.0,
+          "y": 15.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 9.5,
+          "y": 17.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 7.5,
+          "y": 16.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 9.0,
+          "y": 18.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 4,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 24.1884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 22.5,
+          "y": 17.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 22.0,
+          "y": 15.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.5,
+          "y": 17.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 23.0,
+          "y": 18.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/1c3s5z",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "corridor": {
+      "map_id": "new_maps/corridor",
+      "map_sha256": "b768406ed480281db96ae52df94f92a7768cd58ff46cb9a9735b94d139299c68",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "105,0": 105,
+        "73,0": 73
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 19.039794921875,
+          "y": 19.119873046875
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 19.039794921875,
+          "y": 18.181396484375
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 19.978271484375,
+          "y": 19.119873046875
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 19.039794921875,
+          "y": 20.058349609375
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 18.101318359375,
+          "y": 19.119873046875
+        },
+        {
+          "owner": 1,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 20.039794921875,
+          "y": 18.119873046875
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.909912109375,
+          "y": 28.239990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.909912109375,
+          "y": 27.551513671875
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.598388671875,
+          "y": 28.239990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.909912109375,
+          "y": 28.928466796875
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.221435546875,
+          "y": 28.239990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.659912109375,
+          "y": 27.489990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.659912109375,
+          "y": 28.989990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.159912109375,
+          "y": 28.989990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.159912109375,
+          "y": 27.489990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.909912109375,
+          "y": 26.739990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.409912109375,
+          "y": 28.239990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.909912109375,
+          "y": 29.6875
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.409912109375,
+          "y": 28.239990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.659912109375,
+          "y": 26.739990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.409912109375,
+          "y": 28.989990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.159912109375,
+          "y": 29.6875
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.409912109375,
+          "y": 27.489990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.409912109375,
+          "y": 27.489990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.659912109375,
+          "y": 29.6875
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.409912109375,
+          "y": 28.989990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.159912109375,
+          "y": 26.739990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.409912109375,
+          "y": 26.739990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.409912109375,
+          "y": 29.6875
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.409912109375,
+          "y": 29.6875
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/corridor",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "6h_vs_8z": {
+      "map_id": "new_maps/6h_vs_8z",
+      "map_sha256": "7f0c708b1bc5e405600873d25f0ee7829e795e21f237d07d3b8d0e879437ddb2",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "107,0": 107,
+        "73,0": 73
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 14.599853515625,
+          "y": 9.489990234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 14.599853515625,
+          "y": 8.301513671875
+        },
+        {
+          "owner": 1,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 15.788330078125,
+          "y": 9.489990234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 14.599853515625,
+          "y": 10.678466796875
+        },
+        {
+          "owner": 1,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 13.411376953125,
+          "y": 9.489990234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 15.849853515625,
+          "y": 8.239990234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 14.409912109375,
+          "y": 16.759765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 14.409912109375,
+          "y": 15.8212890625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 15.348388671875,
+          "y": 16.759765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 14.409912109375,
+          "y": 17.6982421875
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 13.471435546875,
+          "y": 16.759765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 15.409912109375,
+          "y": 15.759765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 15.409912109375,
+          "y": 17.759765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 13.409912109375,
+          "y": 17.759765625
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/6h_vs_8z",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "2c_vs_64zg": {
+      "map_id": "new_maps/2c_vs_64zg",
+      "map_sha256": "0bf08df1ff70204f384cec45161a5d3fd9a8ca1945a46f06dd89fef4a60a9cfd",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "105,0": 105,
+        "4,0": 4
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 4,
+          "variant": 0,
+          "x": 16.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 4,
+          "variant": 0,
+          "x": 16.0,
+          "y": 14.0615234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.0,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.0,
+          "y": 8.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.6884765625,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.0,
+          "y": 9.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 15.3115234375,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.75,
+          "y": 8.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.75,
+          "y": 9.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 15.25,
+          "y": 9.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 15.25,
+          "y": 8.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.0,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 17.5,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.0,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 14.5,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.75,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 17.5,
+          "y": 9.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 15.25,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 14.5,
+          "y": 8.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 17.5,
+          "y": 8.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.75,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 14.5,
+          "y": 9.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 15.25,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 17.5,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 17.5,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 14.5,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 14.5,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.0,
+          "y": 6.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 18.25,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.0,
+          "y": 11.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.75,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.75,
+          "y": 6.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 18.25,
+          "y": 9.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 15.25,
+          "y": 11.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.75,
+          "y": 8.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 18.25,
+          "y": 8.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.75,
+          "y": 11.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.75,
+          "y": 9.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 15.25,
+          "y": 6.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 17.5,
+          "y": 6.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 18.25,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 14.5,
+          "y": 11.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.75,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 18.25,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 17.5,
+          "y": 11.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.75,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 14.5,
+          "y": 6.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.0,
+          "y": 6.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 19.0,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.0,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 16.75,
+          "y": 6.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 19.0,
+          "y": 9.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.0,
+          "y": 8.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 19.0,
+          "y": 8.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.0,
+          "y": 9.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 15.25,
+          "y": 6.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 18.25,
+          "y": 6.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 18.25,
+          "y": 11.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.75,
+          "y": 11.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.75,
+          "y": 6.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 17.5,
+          "y": 6.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 19.0,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.0,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 19.0,
+          "y": 7.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 13.0,
+          "y": 10.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 14.5,
+          "y": 6.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/2c_vs_64zg",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "2vr_vs_3sc": {
+      "map_id": "new_maps/2vr_vs_3sc",
+      "map_sha256": "62c8802cd01d2c9dc5b8f0a9f6b02991e5b0a54d2ded7b88dbafc0f1e8fbf182",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "80,0": 80,
+        "99,0": 99
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 80,
+          "variant": 0,
+          "x": 10.938232421875,
+          "y": 8.86181640625
+        },
+        {
+          "owner": 1,
+          "unit_type": 80,
+          "variant": 0,
+          "x": 16.887451171875,
+          "y": 8.847412109375
+        },
+        {
+          "owner": 2,
+          "unit_type": 99,
+          "variant": 0,
+          "x": 14.0,
+          "y": 21.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 99,
+          "variant": 0,
+          "x": 16.0,
+          "y": 20.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 99,
+          "variant": 0,
+          "x": 16.0,
+          "y": 22.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/2vr_vs_3sc",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "3hl_vs_24zl": {
+      "map_id": "new_maps/3hl_vs_24zl",
+      "map_sha256": "f138245a814add214aee3d62115b30952bc904ccb17b54c5b8ebcc99fb6bedcb",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "105,0": 105,
+        "53,0": 53
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 53,
+          "variant": 0,
+          "x": 6.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 53,
+          "variant": 0,
+          "x": 6.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 53,
+          "variant": 0,
+          "x": 7.1884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.25,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.0,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.0,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.75,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.5,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.25,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.75,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.25,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.5,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.5,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 17.5
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/3hl_vs_24zl",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "3rp_vs_5zl": {
+      "map_id": "new_maps/3rp_vs_5zl",
+      "map_sha256": "8a1a159796066cfb62f994c3ac21af5a18f6f7a029634aa605190557871a54f9",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "49,0": 49,
+        "73,0": 73
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 49,
+          "variant": 0,
+          "x": 16.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 49,
+          "variant": 0,
+          "x": 16.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 49,
+          "variant": 0,
+          "x": 16.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 16.0,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 16.0,
+          "y": 8.0615234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 16.9384765625,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 16.0,
+          "y": 9.9384765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 15.0615234375,
+          "y": 9.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/3rp_vs_5zl",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "3rp_vs_24zl": {
+      "map_id": "new_maps/3rp_vs_24zl",
+      "map_sha256": "6f097012659db064d54c1ca815c520b516f3b3d98a3203b611cd6afa53cdddd7",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "105,0": 105,
+        "49,0": 49
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 49,
+          "variant": 0,
+          "x": 9.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 49,
+          "variant": 0,
+          "x": 9.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 49,
+          "variant": 0,
+          "x": 9.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 22.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 22.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 22.25,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.0,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.0,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.75,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 22.25,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 21.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 23.75,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 21.5,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 22.25,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 24.5,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 21.5,
+          "y": 17.5
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/3rp_vs_24zl",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "7q_vs_2bc": {
+      "map_id": "new_maps/7q_vs_2bc",
+      "map_sha256": "c2c12d903a8e5d1526f48a4c5de38f62d51fa959a1bb7c485367d36172e16a94",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "126,0": 126,
+        "57,0": 57
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 126,
+          "variant": 0,
+          "x": 16.0,
+          "y": 21.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 126,
+          "variant": 0,
+          "x": 16.0,
+          "y": 19.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 126,
+          "variant": 0,
+          "x": 17.6884765625,
+          "y": 21.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 126,
+          "variant": 0,
+          "x": 16.0,
+          "y": 22.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 126,
+          "variant": 0,
+          "x": 14.3115234375,
+          "y": 21.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 126,
+          "variant": 0,
+          "x": 17.75,
+          "y": 19.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 126,
+          "variant": 0,
+          "x": 17.75,
+          "y": 22.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 57,
+          "variant": 0,
+          "x": 17.0,
+          "y": 3.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 57,
+          "variant": 0,
+          "x": 17.0,
+          "y": 0.5615234375
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/7q_vs_2bc",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "3st_vs_5zl": {
+      "map_id": "new_maps/3st_vs_5zl",
+      "map_sha256": "2a904814e73bebd9886ca6bd63894137a8559b4a6332143ede8936b1d5c76028",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "73,0": 73,
+        "74,0": 74
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 16.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 16.0,
+          "y": 14.8115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 17.153076171875,
+          "y": 15.5625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 16.0,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 16.0,
+          "y": 8.0615234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 16.9384765625,
+          "y": 9.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 16.0,
+          "y": 9.9384765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 15.0615234375,
+          "y": 9.0
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/3st_vs_5zl",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "6m_vs_10m": {
+      "map_id": "new_maps/6m_vs_10m",
+      "map_sha256": "885a344bd6a1dae27b1366f5d95ba9eda73cff438938598a609d8a4f0bbc3a90",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "48,0": 48
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 6.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 6.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 6.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 6.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 5.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 6.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 26.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 26.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 26.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 26.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 25.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 26.75,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 26.75,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 25.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 25.25,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 26.0,
+          "y": 14.5
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/6m_vs_10m",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "mmmt_vs_zspi": {
+      "map_id": "new_maps/mmmt_vs_zspi",
+      "map_sha256": "f56acf4df270d8e8044c290dc4d8a51f40a3d4b323900cb5162de5d7927a003e",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "33,0": 33,
+        "48,0": 48,
+        "51,0": 51,
+        "54,0": 54,
+        "73,0": 73,
+        "74,0": 74,
+        "78,0": 78,
+        "83,0": 83
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 4.5,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 4.5,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 4.6875,
+          "y": 14.875
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 4.125,
+          "y": 17.6875
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 2.4375,
+          "y": 13.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 3.0,
+          "y": 14.5615234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 33,
+          "variant": 0,
+          "x": 4.75,
+          "y": 13.375
+        },
+        {
+          "owner": 1,
+          "unit_type": 33,
+          "variant": 0,
+          "x": 5.625,
+          "y": 17.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 29.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 29.0,
+          "y": 15.0615234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 29.0,
+          "y": 17.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 28.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 28.0,
+          "y": 17.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 28.0,
+          "y": 15.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 29.0,
+          "y": 14.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 29.0,
+          "y": 18.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 73,
+          "variant": 0,
+          "x": 27.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 27.125,
+          "y": 17.875
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 27.125,
+          "y": 14.125
+        },
+        {
+          "owner": 2,
+          "unit_type": 74,
+          "variant": 0,
+          "x": 29.0,
+          "y": 12.875
+        },
+        {
+          "owner": 2,
+          "unit_type": 83,
+          "variant": 0,
+          "x": 28.25,
+          "y": 19.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 83,
+          "variant": 0,
+          "x": 26.0,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 78,
+          "variant": 0,
+          "x": 29.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 78,
+          "variant": 0,
+          "x": 29.0,
+          "y": 14.5615234375
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/mmmt_vs_zspi",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "mmmt": {
+      "map_id": "new_maps/mmmt",
+      "map_sha256": "1e1d6a373e8c7937a7f17cb1781c2c2e8189ae2050878fa82e5e602dd415f7cf",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "33,0": 33,
+        "48,0": 48,
+        "51,0": 51,
+        "54,0": 54
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 4.5,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 4.5,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 4.6875,
+          "y": 14.875
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 4.125,
+          "y": 17.6875
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 2.4375,
+          "y": 13.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 3.0,
+          "y": 14.5615234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 33,
+          "variant": 0,
+          "x": 4.75,
+          "y": 13.375
+        },
+        {
+          "owner": 1,
+          "unit_type": 33,
+          "variant": 0,
+          "x": 5.625,
+          "y": 17.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 28.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 28.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 28.25,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.0,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.0,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 27.5,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 28.25,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 27.5,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 27.3125,
+          "y": 17.125
+        },
+        {
+          "owner": 2,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 27.875,
+          "y": 14.3125
+        },
+        {
+          "owner": 2,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 29.5625,
+          "y": 18.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 29.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 29.0,
+          "y": 14.5615234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 33,
+          "variant": 0,
+          "x": 27.25,
+          "y": 18.625
+        },
+        {
+          "owner": 2,
+          "unit_type": 33,
+          "variant": 0,
+          "x": 26.375,
+          "y": 14.25
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/mmmt",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    },
+    "mmmt_vs_zhb": {
+      "map_id": "new_maps/mmmt_vs_zhb",
+      "map_sha256": "5195ceb189058272bef39d2a4ed07dbb0115298c1e624ddb78cea6b6b83f4e78",
+      "sc2_version": "4.10.0.75689",
+      "game_loop": 0,
+      "native_unit_type": {
+        "105,0": 105,
+        "107,0": 107,
+        "33,0": 33,
+        "48,0": 48,
+        "51,0": 51,
+        "54,0": 54,
+        "9,0": 9
+      },
+      "units": [
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.6884765625,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 15.25
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 4.5,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.0,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 3.75,
+          "y": 14.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 4.5,
+          "y": 16.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 48,
+          "variant": 0,
+          "x": 2.3125,
+          "y": 17.5
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 4.6875,
+          "y": 14.875
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 4.125,
+          "y": 17.6875
+        },
+        {
+          "owner": 1,
+          "unit_type": 51,
+          "variant": 0,
+          "x": 2.4375,
+          "y": 13.75
+        },
+        {
+          "owner": 1,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 3.0,
+          "y": 16.0
+        },
+        {
+          "owner": 1,
+          "unit_type": 54,
+          "variant": 0,
+          "x": 3.0,
+          "y": 14.5615234375
+        },
+        {
+          "owner": 1,
+          "unit_type": 33,
+          "variant": 0,
+          "x": 4.75,
+          "y": 13.375
+        },
+        {
+          "owner": 1,
+          "unit_type": 33,
+          "variant": 0,
+          "x": 5.625,
+          "y": 17.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 9,
+          "variant": 0,
+          "x": 29.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 9,
+          "variant": 0,
+          "x": 29.0,
+          "y": 15.3115234375
+        },
+        {
+          "owner": 2,
+          "unit_type": 9,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 9,
+          "variant": 0,
+          "x": 29.0,
+          "y": 16.6884765625
+        },
+        {
+          "owner": 2,
+          "unit_type": 9,
+          "variant": 0,
+          "x": 28.3115234375,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 9,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 9,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 9,
+          "variant": 0,
+          "x": 28.25,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 28.132568359375,
+          "y": 14.953125
+        },
+        {
+          "owner": 2,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 29.0,
+          "y": 14.125
+        },
+        {
+          "owner": 2,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 29.0,
+          "y": 17.875
+        },
+        {
+          "owner": 2,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 27.125,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 27.75,
+          "y": 17.875
+        },
+        {
+          "owner": 2,
+          "unit_type": 107,
+          "variant": 0,
+          "x": 27.125,
+          "y": 14.125
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.125,
+          "y": 17.125
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 13.375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.375,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 18.625
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.375,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.25,
+          "y": 13.375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.75,
+          "y": 17.875
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.0,
+          "y": 13.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.0,
+          "y": 19.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.0,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.25,
+          "y": 19.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.125,
+          "y": 18.625
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.0,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.0,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.5,
+          "y": 13.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 12.625
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.625,
+          "y": 15.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.6875,
+          "y": 19.375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.625,
+          "y": 16.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.25,
+          "y": 12.625
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.5,
+          "y": 19.375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.375,
+          "y": 18.625
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.375,
+          "y": 13.375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.0,
+          "y": 12.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 29.0,
+          "y": 19.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.25,
+          "y": 16.0
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 28.25,
+          "y": 19.75
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.25,
+          "y": 14.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.25,
+          "y": 17.5
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 27.5,
+          "y": 12.25
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 26.75,
+          "y": 19.375
+        },
+        {
+          "owner": 2,
+          "unit_type": 105,
+          "variant": 0,
+          "x": 25.625,
+          "y": 13.75
+        }
+      ],
+      "portable": {
+        "map_id": "new_maps/mmmt_vs_zhb",
+        "terrain_same": true,
+        "note": "Same map asset"
+      }
+    }
+  }
+}

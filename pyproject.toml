@@ -1,0 +1,122 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "unismac"
+version = "0.1.0"
+description = "Unified multi-agent StarCraft combat environments (SMAC / SMACv2 / SMAC-Hard) with pluggable backends"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Jiale Wang", email = "jialewang@bupt.edu.cn" }]
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "zfoundry-zgame>=0.1.0,<0.2.0; (sys_platform == 'linux' and (platform_machine == 'x86_64' or platform_machine == 'aarch64')) or (sys_platform == 'darwin' and (platform_machine == 'arm64' or platform_machine == 'x86_64')) or (sys_platform == 'win32' and platform_machine == 'AMD64')",
+]
+keywords = ["marl", "smac", "smacv2", "smac-hard", "reinforcement-learning", "multi-agent"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+zgame = ["zfoundry-zgame>=0.1.0,<0.2.0"]
+sc2 = [
+  "pysc2==4.0.0",
+  "protobuf==3.20.3",
+  "s2clientprotocol==5.0.16.97563.0",
+]
+
+[project.scripts]
+unismac = "unismac.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Z-Foundry/UniSMAC"
+Repository = "https://github.com/Z-Foundry/UniSMAC"
+Issues = "https://github.com/Z-Foundry/UniSMAC/issues"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.9",
+  "pyrefly>=0.30",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["unismac"]
+exclude = [
+  "unismac/backends/zgame/_zgame*.so",
+  "unismac/backends/zgame/_zgame*.pyd",
+  "unismac/backends/zgame/_zgame.build.json",
+  "unismac/backends/zgame/_zgame.pyi",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/unismac",
+  "/tests",
+  "/docs",
+  "/examples",
+  "/LICENSE",
+  "/NOTICE",
+  "/README.md",
+  "/README_zh.md",
+  "/CITATION.cff",
+  "/pyproject.toml",
+]
+exclude = [
+  "unismac/backends/zgame/_zgame*.so",
+  "unismac/backends/zgame/_zgame*.pyd",
+  "unismac/backends/zgame/_zgame.build.json",
+  "unismac/backends/zgame/_zgame.pyi",
+  "tests/upstream_parity",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["unismac"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-q", "-m", "not sc2 and not slow", "--import-mode=importlib"]
+markers = [
+  "sc2: tests requiring a local StarCraft II client",
+  "slow: full cross-tier parity tests (run with -m slow)",
+]
+
+[tool.pyrefly]
+project-includes = ["unismac", "tests"]
+search-path = ["."]
+python-version = "3.12"
+ignore-missing-imports = [
+  "absl",
+  "absl.*",
+  "pysc2",
+  "pysc2.*",
+  "s2clientprotocol",
+  "s2clientprotocol.*",
+  "zgame",
+  "zgame.*",
+]
